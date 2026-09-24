@@ -1,12 +1,18 @@
-package shijianjianting.gongju;
+package shijianjianting.bianliang.zuobiao;
+
+
+import shijianjianting.gongju.zhujie.Live;
 
 import java.util.Vector;
 
 public class zuobiao {
-    public double x,y;
-    public zuobiao(double x,double y){
-        this.x=x;
-        this.y=y;
+
+    @Live(Live.Role.LON) public double x;
+    @Live(Live.Role.LAT) public double y;
+
+    public zuobiao(double x, double y) {
+        this.x = x;
+        this.y = y;
     }
 
     public static Vector<zuobiao> kuaisushengchengVectorzuobiao(double... pairs) {

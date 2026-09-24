@@ -1,42 +1,36 @@
+
 import shijianjianting.bianliang.guojia.country;
-import shijianjianting.gongju.PaintBoard;
-import shijianjianting.gongju.chengshi;
-import shijianjianting.gongju.zuobiao;
-import shunxu.first_daoruguojia.first_daoruguojia;
+import shijianjianting.bianliang.bingpai.BINGPAI;
+import shijianjianting.bianliang.chengshi.chengshi;
+import shijianjianting.gongju.zhujie.LiveRegistry;
+import shijianjianting.bianliang.zuobiao.zuobiao;
 
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
-import java.awt.event.ComponentAdapter;
-import java.awt.event.ComponentEvent;
-import java.util.Vector;
 
 import static shijianjianting.gongju.bianliang.*;
 
-public class Main extends PaintBoard {
+public class Main {
 
     public static void main(String[] args) {
+        System.setProperty("sun.java2d.d3d", "True");
+        System.setProperty("sun.java2d.noddraw", "True");
         SwingUtilities.invokeLater(() -> {
 
             gameframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            gameframe.setUndecorated(true);   // 全屏前必须无装饰
+            gameframe.setUndecorated(true);
 
             JPanel panel = new JPanel(new BorderLayout());
             panel.setBackground(Color.BLACK);
 
-
-            board.setBackground(Color.BLACK);   // 黑底画板
+            board.setBackground(Color.BLACK);
             board.setOpaque(true);
-            // 视图中心点只能在东经 -30° 到 60° 之间
 
-
-
-            panel.add(board, BorderLayout.CENTER);   // ★ 关键：加进去
-
+            panel.add(board, BorderLayout.CENTER);
             gameframe.setContentPane(panel);
 
-            // ESC 退出全屏
             panel.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
                     .put(KeyStroke.getKeyStroke("ESCAPE"), "exitFullScreen");
             panel.getActionMap().put("exitFullScreen", new AbstractAction() {
@@ -47,66 +41,64 @@ public class Main extends PaintBoard {
                 }
             });
 
-            // ★ 等布局完成后再画：用 componentResized 保证有真实尺寸
-            board.addComponentListener(new ComponentAdapter() {
-                private boolean drawn = false;
-                @Override public void componentResized(ComponentEvent e) {
-                    if (drawn) return;
-                    drawn = true;
-                    board.setBrushColor(Color.RED);
-                    board.setBrushSize(3);
-                    board.drawLine(50, 50, 300, 200);
-
-                    board.setBrushColor(Color.BLUE);
-                    board.setBrushSize(8);
-                    board.drawOval(100, 100, 150, 100);
-
-                    board.setBrushColor(Color.WHITE);
-                    board.drawText("Hello", 200, 300, 36);
-                    board.drawText(String.valueOf(board.shibiaojingweidu()[0]), 200, 300, 36);
-                    board.drawText(String.valueOf(board.shibiaojingweidu()[1]), 200, 300, 36);
-                }
-            });
-
             GraphicsDevice gd = GraphicsEnvironment
                     .getLocalGraphicsEnvironment().getDefaultScreenDevice();
 
             if (gd.isFullScreenSupported()) {
-                gd.setFullScreenWindow(gameframe);   // 会自动显示
+                gd.setFullScreenWindow(gameframe);
             } else {
                 gameframe.setExtendedState(JFrame.MAXIMIZED_BOTH);
                 gameframe.setVisible(true);
             }
+
+            // ★ 关键：开启"全自动脏检测"，30fps 轮询所有 @Live 字段
+            LiveRegistry.startTimer(33);
+
+            // 加载国家，绑定到画板
+            shunxu.util.first_daoruguojia.daoruguojia();
+            bindCountriesToBoard();
+
+            board.centerOn(104, 35);
+            board.setZoom(8);
         });
-        first_daoruguojia.daoruguojia();
-        for(country country:countries){
-            Vector<zuobiao> difang=country.zuobiaozu_GUOJIAQUANTU;
+    }
 
-            Vector<chengshi> chengshiB=country.zuobiaozu_DACHENGSHI;
-            Color color=country.color;
-            int a1=0;
-            for(zuobiao zuobiao:difang){
-                board.addGeoDot(zuobiao.x, zuobiao.y, 0.3, color);
+    // ============================================================
+    //  把所有 country / chengshi / BINGPAI 绑定到 PaintBoard
+    // ============================================================
+    private static void bindCountriesToBoard() {
+        board.beginBatch();
 
+        for (country c : countries) {
+            final country cc = c;
 
+            // ---------- 国家地图点（位置来自 zuobiao，颜色来自 country） ----------
+            for (zuobiao z : cc.zuobiaozu_GUOJIAQUANTU) {
+                board.addGeoDot(z.x, z.y, 0.005d, cc.color);
             }
-            a1=0;
-            for(chengshi chengshia:chengshiB){
-                JButton btn = chengshiB.get(a1).anniu;
-                PaintBoard.GeoText t = board.addGeoText(
-                        chengshia.name,             // 文字内容
-                        chengshia.zuobiao.x,        // 经度
-                        chengshia.zuobiao.y,        // 纬度
-                        2,                  // 字号（基准）
-                        Color.WHITE,btn);        // 颜色
-                        // 相对锚点向上 25 像素
 
+            // ---------- 城市 ----------
+            for (chengshi cs : cc.zuobiaozu_DACHENGSHI) {
+                cs.bianhaoTEXT   = board.addAutoText(cs, 3, cs.anniu);
+                cs.bianhaoBUTTOM = board.addAutoComponent(cs.anniu, cs);
 
-                board.addGeoComponent(btn, chengshia.zuobiao.x, chengshia.zuobiao.y);
-                a1++;
+                // 可选：若希望 setter 立刻重绘（不依赖定时器）：
+                // cs.bind(board::repaint);
+            }
 
+            // ---------- 军队 ----------
+            for (BINGPAI b : cc.jundui) {
+                b.bianhao = board.addAutoComponent(b, b);
+            }
+
+            // ---------- 首都 ----------
+            final chengshi cap = cc.shoudu;
+            if (cap != null) {
+                cap.bianhaoBUTTOM = board.addAutoText(cap, 1, cap.anniu);
+                board.addAutoComponent(cap.anniu, cap);
             }
         }
 
+        board.endBatch();
     }
 }
