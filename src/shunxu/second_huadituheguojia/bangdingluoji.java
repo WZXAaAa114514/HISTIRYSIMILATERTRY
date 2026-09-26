@@ -1,13 +1,9 @@
 package shunxu.second_huadituheguojia;
 
-import shijianjianting.bianliang.bingpai.BINGPAI;
-import shijianjianting.bianliang.chengshi.chengshi;
-import shijianjianting.bianliang.guojia.country;
-import shijianjianting.bianliang.zuobiao.zuobiao;
-import shijianjianting.gongju.gongju;
-import shunxu.third_shijianpaifaqiqidong.s.beixuanze_DUOXUAN;
+import neirong.bianliang.chengshi.chengshi;
+import neirong.bianliang.guojia.country;
 
-import static shijianjianting.gongju.bianliang.*;
+import static neirong.gongju.bianliang.*;
 
 public class bangdingluoji {
     public static void bachuadedongxigaoshanghuaban() {

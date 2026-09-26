@@ -1,35 +1,57 @@
 
-import shijianjianting.bianliang.guojia.country;
-import shijianjianting.bianliang.bingpai.BINGPAI;
-import shijianjianting.bianliang.chengshi.chengshi;
-import shijianjianting.bianliang.xuanding.shubiaojianting;
-import shijianjianting.gongju.gongju;
-import shijianjianting.gongju.zhujie.LiveRegistry;
-import shijianjianting.bianliang.zuobiao.zuobiao;
+import neirong.bianliang.xuanding.shubiaojianting;
+import neirong.gongju.bianliang;
+import neirong.gongju.gongju;
+import shunxu.anjianhuoqu.anjianhuoqu;
+import shunxu.first_daoruguojia.first_daoruguojia;
 import shunxu.third_shijianpaifaqiqidong.EventBus;
-import shijianjianting.shijian.MyListener;
+import neirong.shijian.MyListener;
+import shunxu.third_shijianpaifaqiqidong.shijian.anjian;
+import shunxu.third_shijianpaifaqiqidong.shijian.kongzhitaifasong;
 
 
 import javax.swing.*;
-import java.awt.*;
-import java.awt.event.ActionEvent;
 
-import static shijianjianting.gongju.bianliang.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static neirong.gongju.bianliang.*;
 
 public class Main {
 
     public static void main(String[] args) {
         EVENTMAIN=new EventBus();
         EVENTMAIN.register(new MyListener());
-
+        board.setTrailAntialias(false);
 
         System.setProperty("sun.java2d.d3d", "True");
         System.setProperty("sun.java2d.noddraw", "True");
-        shunxu.util.first_daoruguojia.daoruguojia();
+        first_daoruguojia.daoruguojia();
         gongju.shiftdownstart();
         shunxu.second_huadituheguojia.huahua.hua();
         shunxu.fourth_huizhishijian.huizhi.draw();
         shubiaojianting.kaishijianting();
+
+        gameframe.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowLostFocus(WindowEvent e) {
+                // 防止按键状态卡住
+                anjianhuoqu.clear();
+            }
+        });
+        anjianhuoqu.addListener(pressedKeys -> {
+            List<String> names = pressedKeys.stream()
+                    .map(KeyEvent::getKeyText)
+                    .sorted()
+                    .collect(Collectors.toList());
+            EVENTMAIN.post(new anjian(names));
+
+
+        });
 
     }
 

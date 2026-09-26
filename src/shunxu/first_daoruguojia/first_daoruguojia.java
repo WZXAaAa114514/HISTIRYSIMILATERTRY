@@ -1,7 +1,7 @@
-package shunxu.util;
+package shunxu.first_daoruguojia;
 
-import shijianjianting.bianliang.guojia.country;
-import shijianjianting.gongju.bianliang;
+import neirong.bianliang.guojia.country;
+import neirong.gongju.bianliang;
 import shunxu.first_daoruguojia.jianting_daoruguojia;
 
 import java.io.File;
@@ -23,7 +23,7 @@ import java.util.jar.JarFile;
  * 扫描指定包下的所有类（支持目录 + jar）。
  */
 public class first_daoruguojia {
-    private static final String SCAN_PACKAGE = "shijianjianting.shijian";
+    private static final String SCAN_PACKAGE = "neirong.shijian";
 
     public static void daoruguojia() {
         // 1. 拿到该包下所有类
@@ -41,16 +41,16 @@ public class first_daoruguojia {
                     Object result;
                     if (Modifier.isStatic(method.getModifiers())) {
                         // 静态方法
-                        result = method.invoke(null, new Vector<country>());
+                        result = method.invoke(null, new ArrayList<country>());
                     } else {
                         // 实例方法：先 new 一个对象
                         Object instance = clazz.getDeclaredConstructor().newInstance();
-                        result = method.invoke(instance, new Vector<country>());
+                        result = method.invoke(instance, new ArrayList<country>());
                     }
 
-                    if (result instanceof Vector) {
+                    if (result instanceof List<?>) {
                         @SuppressWarnings("unchecked")
-                        Vector<country> countries = (Vector<country>) result;
+                        List<country> countries = (List<country>) result;
                         if (!countries.isEmpty()) {
                             bianliang.countries.addAll(countries);
                         }

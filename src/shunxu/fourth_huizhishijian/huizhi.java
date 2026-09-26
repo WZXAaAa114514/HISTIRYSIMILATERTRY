@@ -2,8 +2,8 @@ package shunxu.fourth_huizhishijian;
 
 import shijian.shijian.TimeBus;
 import shijian.time;
-import shijianjianting.gongju.bianliang;
-import shijianjianting.shijian.MyListener;
+import neirong.gongju.bianliang;
+import neirong.shijian.MyListener;
 
 
 import javax.swing.*;

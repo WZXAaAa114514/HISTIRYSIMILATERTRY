@@ -1,4 +1,4 @@
-// 在注册方法中创建各势力并加入 Vector<country>
+// 在注册方法中创建各势力并加入 List<country>
 HOI4ChinaBoundaries chiBounds = new HOI4ChinaBoundaries("CHI");
 HOI4ChinaBoundaries chcBounds = new HOI4ChinaBoundaries("CHC");
 HOI4ChinaBoundaries manBounds = new HOI4ChinaBoundaries("MAN");
@@ -12,7 +12,7 @@ if (manBounds.contains(beijingLon, beijingLat)) {
 }
 if (chcBounds.contains(beijingLon, beijingLat)) {
     System.out.println("北京属于中共根据地");
-}package shijianjianting.bianliang.guojia.ditushengchengqi;
+}package neirong.bianliang.guojia.ditushengchengqi;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -297,20 +297,20 @@ public class HOI4ChinaBoundaries {
             this.maxLat = maxLat;
         }
     }
-}按照package shijianjianting.shijian;
+}按照package neirong.shijian;
 
-import shijianjianting.bianliang.bingpai.bingmoshuju;
-import shijianjianting.bianliang.guojia.country;
-import shijianjianting.bianliang.bingpai.BINGPAI;
-import shijianjianting.bianliang.chengshi.chengshi;
-import shijianjianting.bianliang.zuobiao.zuobiao;
+import neirong.bianliang.bingpai.bingmoshuju;
+import neirong.bianliang.guojia.country;
+import neirong.bianliang.bingpai.BINGPAI;
+import neirong.bianliang.chengshi.chengshi;
+import neirong.bianliang.zuobiao.zuobiao;
 import shunxu.first_daoruguojia.jianting_daoruguojia;
 
 import javax.swing.*;
 import java.awt.*;
 import java.util.Vector;
 
-import static shijianjianting.gongju.bianliang.board;
+import static neirong.gongju.bianliang.board;
 
 public class shijian {
 
@@ -385,7 +385,7 @@ public class shijian {
 
     // ==================== 注册 ====================
     @jianting_daoruguojia
-    public static Vector<country> as(Vector<country> a) {
+    public static List<country> as(List<country> a) {
 
         // 数据一致性校验
         if (CITY_NAMES.length != CITY_LONS.length
@@ -396,9 +396,9 @@ public class shijian {
                             + ", lats=" + CITY_LATS.length);
         }
 
-        // ★ 按 country 构造签名，分别准备两个 Vector<zuobiao> / Vector<chengshi>
-        Vector<zuobiao> chengshiWeizhi = new Vector<>(CITY_NAMES.length);
-        Vector<chengshi> chengshiList  = new Vector<>(CITY_NAMES.length);
+        // ★ 按 country 构造签名，分别准备两个 List<zuobiao> / List<chengshi>
+        List<zuobiao> chengshiWeizhi = new ArrayList<>(CITY_NAMES.length);
+        List<chengshi> chengshiList  = new ArrayList<>(CITY_NAMES.length);
         JButton btn = new JButton();
         for (int i = 0; i < CITY_NAMES.length; i++) {
             final String cityName = CITY_NAMES[i];
@@ -437,8 +437,8 @@ public class shijian {
                 JOptionPane.showMessageDialog(board, "点击了：" + "首都"));
         country country1=new country(
                 country.countrys.CHINA.get(),   // 中国国土面点
-                // Vector<zuobiao>
-                chengshiList,                   // Vector<chengshi>
+                // List<zuobiao>
+                chengshiList,                   // List<chengshi>
                 Color.RED,new chengshi(new zuobiao(116.40,39.90),btn,"北京"));
         country1.jundui.add(new BINGPAI((Image) null,10,"a",200.40,39.90,country1,new bingmoshuju(30)));
         country1.jundui.add(new BINGPAI((Image) null,10,"a",121.4737,39.90,country1,new bingmoshuju(30)));

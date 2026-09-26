@@ -1,13 +1,13 @@
 package shunxu.second_huadituheguojia;
 
-import shijianjianting.gongju.zhujie.LiveRegistry;
+import neirong.gongju.zhujie.LiveRegistry;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 
-import static shijianjianting.gongju.bianliang.board;
-import static shijianjianting.gongju.bianliang.gameframe;
+import static neirong.gongju.bianliang.board;
+import static neirong.gongju.bianliang.gameframe;
 
 public class huahua {
     public static void hua(){
