@@ -1,6 +1,7 @@
 package shijianjianting.bianliang.chengshi;
 
 
+import shijianjianting.bianliang.xuanding.danxuan;
 import shijianjianting.gongju.zhujie.Live;
 import shijianjianting.gongju.zhujie.LiveObject;
 import shijianjianting.bianliang.zuobiao.zuobiao;
@@ -8,7 +9,7 @@ import shijianjianting.bianliang.zuobiao.zuobiao;
 import javax.swing.*;
 import java.util.Vector;
 
-public class chengshi extends LiveObject {
+public class chengshi extends LiveObject  {
 
     public zuobiao zuobiao;
     public JButton anniu;
@@ -72,4 +73,6 @@ public class chengshi extends LiveObject {
         }
         return vector;
     }
+
+
 }

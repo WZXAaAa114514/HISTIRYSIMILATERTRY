@@ -1,7 +1,5 @@
 package shijianjianting.gongju;
 
-
-
 import shijianjianting.gongju.zhujie.LiveBinder;
 import shijianjianting.gongju.zhujie.LiveRegistry;
 
@@ -12,6 +10,7 @@ import java.awt.geom.*;
 import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
+import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -41,56 +40,36 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
-    //  ★★★ 4 个缩放控制变量（你直接改这 4 个字段即可）★★★
+    //  ★★★ 4 个缩放控制变量 ★★★
     // ============================================================
-
-    /** 按钮最小缩放倍数。1.0 = 不缩小，0.5 = 最多缩小到一半，0.1 = 极小。 */
     private float buttonMinScale = 2f;
-
-    /** 按钮最大缩放倍数。1.0 = 不放大，2.0 = 最多放大到 2 倍，5.0 = 更大。 */
     private float buttonMaxScale = 5f;
-
-    /** 文字最小缩放倍数。1.0 = 不缩小，0.5 = 最多缩小到一半。 */
     private float textMinScale   = 2f;
-
-    /** 文字最大缩放倍数。1.0 = 不放大，2.0 = 最多放大到 2 倍。 */
     private float textMaxScale   = 5f;
 
-    // ---------- 4 个变量的 getter / setter ----------
-
     public float getButtonMinScale() { return buttonMinScale; }
-    /** 设置按钮最小缩放倍数，< 0.01 会被夹到 0.01。 */
     public void setButtonMinScale(float v) {
         this.buttonMinScale = Math.max(0.01f, v);
         if (this.buttonMaxScale < this.buttonMinScale) {
             this.buttonMaxScale = this.buttonMinScale;
         }
     }
-
     public float getButtonMaxScale() { return buttonMaxScale; }
-    /** 设置按钮最大缩放倍数，< buttonMinScale 会被夹到 buttonMinScale。 */
     public void setButtonMaxScale(float v) {
         this.buttonMaxScale = Math.max(this.buttonMinScale, v);
     }
-
     public float getTextMinScale() { return textMinScale; }
-    /** 设置文字最小缩放倍数。 */
     public void setTextMinScale(float v) {
         this.textMinScale = Math.max(0.01f, v);
         if (this.textMaxScale < this.textMinScale) {
             this.textMaxScale = this.textMinScale;
         }
     }
-
     public float getTextMaxScale() { return textMaxScale; }
-    /** 设置文字最大缩放倍数。 */
     public void setTextMaxScale(float v) {
         this.textMaxScale = Math.max(this.textMinScale, v);
     }
 
-    // ---------- 一次性设置 & 立即生效 ----------
-
-    /** 一次性设置 4 个变量。 */
     public void setScaleLimits(float buttonMin, float buttonMax,
                                float textMin,   float textMax) {
         setButtonMinScale(buttonMin);
@@ -99,7 +78,6 @@ public class PaintBoard extends JPanel {
         setTextMaxScale(textMax);
     }
 
-    /** 把当前 4 个变量应用到已经存在的所有按钮和文字上，立即生效。 */
     public void applyScaleLimitsToAll() {
         runOnEDT(() -> {
             for (int i = 0, n = geoComponents.size(); i < n; i++) {
@@ -123,7 +101,6 @@ public class PaintBoard extends JPanel {
     public interface Source {
         double getLon();
         double getLat();
-
         default Color   getColor()    { return null; }
         default String  getText()     { return null; }
         default Double  getRadius()   { return null; }
@@ -149,6 +126,133 @@ public class PaintBoard extends JPanel {
 
     private int batchDepth = 0;
 
+    // ============================================================
+    //  ★★★ 非 Live 点烘焙开关 ★★★
+    // ============================================================
+    private volatile boolean bakeStaticDots = true;
+
+    public boolean isBakeStaticDots() { return bakeStaticDots; }
+
+    public void setBakeStaticDots(boolean on) {
+        if (this.bakeStaticDots == on) return;
+        this.bakeStaticDots = on;
+        if (on) markWorldDirty();
+        repaint();
+    }
+
+    // ============================================================
+    //  ★★★ 轨迹层（永久保留，不随 worldCanvas rebuild 丢失）★★★
+    // ============================================================
+    /** 轨迹层分辨率（每度像素）。调小可省内存，视觉上几乎无差别。 */
+    private static final int TRAIL_PPD = 16;
+    private static final int TRAIL_W = 360 * TRAIL_PPD;
+    private static final int TRAIL_H = 180 * TRAIL_PPD;
+
+    /** 轨迹层位图，懒加载。null = 还没有任何轨迹。 */
+    private BufferedImage trailCanvas;
+
+    /** 是否启用轨迹层。 */
+    private volatile boolean trailEnabled = true;
+    public boolean isTrailEnabled() { return trailEnabled; }
+    public void setTrailEnabled(boolean on) { this.trailEnabled = on; }
+
+    private BufferedImage ensureTrailCanvas() {
+        if (trailCanvas == null) {
+            trailCanvas = new BufferedImage(TRAIL_W, TRAIL_H,
+                    BufferedImage.TYPE_INT_ARGB);
+        }
+        return trailCanvas;
+    }
+
+    /** 清空全部轨迹。 */
+    public void clearTrails() {
+        runOnEDT(() -> {
+            if (trailCanvas == null) return;
+            Graphics2D g = trailCanvas.createGraphics();
+            try {
+                g.setComposite(AlphaComposite.Clear);
+                g.fillRect(0, 0, TRAIL_W, TRAIL_H);
+            } finally {
+                g.dispose();
+            }
+            repaint();
+        });
+    }
+
+    /** 把一条线段追加到永久轨迹层。O(1)，不占列表，不触发 rebuild。 */
+    public void addTrailSegment(double lon1, double lat1,
+                                double lon2, double lat2,
+                                Color color, float widthPx) {
+        if (!trailEnabled) return;
+        if (color == null) color = Color.WHITE;
+        if (widthPx <= 0f) widthPx = 1f;
+
+        final double fLon1 = lon1, fLat1 = lat1;
+        final double fLon2 = lon2, fLat2 = lat2;
+        final Color  fColor = color;
+        final float  fWidth = widthPx;
+
+        runOnEDT(() -> {
+            BufferedImage img = ensureTrailCanvas();
+            Graphics2D g = img.createGraphics();
+            try {
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+                g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                        RenderingHints.VALUE_STROKE_PURE);
+
+                // 跨 180° 环回，走最短弧
+                double dLon = fLon2 - fLon1;
+                dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+                double lon2Adj = fLon1 + dLon;
+
+                double x1 = (fLon1   + 180.0) * TRAIL_PPD;
+                double y1 = (90 - fLat1) * TRAIL_PPD;
+                double x2 = (lon2Adj + 180.0) * TRAIL_PPD;
+                double y2 = (90 - fLat2) * TRAIL_PPD;
+
+                g.setColor(fColor);
+                float trailW = Math.max(1f, fWidth * TRAIL_PPD / 6f);
+                g.setStroke(new BasicStroke(trailW,
+                        BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g.draw(new Line2D.Double(x1, y1, x2, y2));
+            } finally {
+                g.dispose();
+            }
+            repaint();
+        });
+    }
+
+    /** 追加一个轨迹点。 */
+    public void addTrailDot(double lon, double lat,
+                            double radiusDeg, Color color) {
+        if (!trailEnabled) return;
+        if (color == null) color = Color.WHITE;
+
+        final double fLon = lon, fLat = lat;
+        final double fRadius = radiusDeg;
+        final Color  fColor = color;
+
+        runOnEDT(() -> {
+            BufferedImage img = ensureTrailCanvas();
+            Graphics2D g = img.createGraphics();
+            try {
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+
+                double x = (fLon + 180.0) * TRAIL_PPD;
+                double y = (90 - fLat) * TRAIL_PPD;
+                double r = Math.max(0.5, fRadius * TRAIL_PPD);
+
+                g.setColor(fColor);
+                g.fill(new Ellipse2D.Double(x - r, y - r, r * 2, r * 2));
+            } finally {
+                g.dispose();
+            }
+            repaint();
+        });
+    }
+
     // ==================== 静态颜色/字体 ====================
     private static final Color GRID_COLOR_PRIME  = new Color(255, 200, 100, 220);
     private static final Color GRID_COLOR_NORMAL = new Color(70, 70, 70, 160);
@@ -163,7 +267,7 @@ public class PaintBoard extends JPanel {
         final double lon, lat;
         MouseSnapshot(double lon, double lat) { this.lon = lon; this.lat = lat; }
     }
-    private volatile MouseSnapshot mouseSnap = null;
+    public volatile MouseSnapshot mouseSnap = null;
 
     // ==================== 世界边界 ====================
     private static final double WORLD_LAT_MIN = -90;
@@ -249,6 +353,31 @@ public class PaintBoard extends JPanel {
     private int cachedLiveSize = -1;
 
     // ============================================================
+    //  Live 直线
+    // ============================================================
+    public static class LiveLine {
+        public int bianhao;
+        public double lon1, lat1, lon2, lat2;
+        public Color  color;
+        public float  strokeWidth;
+        public boolean visible = true;
+        public Object tag = null;
+
+        LiveLine(int bianhao,
+                 double lon1, double lat1, double lon2, double lat2,
+                 Color color, float strokeWidth) {
+            this.bianhao = bianhao;
+            this.lon1 = lon1; this.lat1 = lat1;
+            this.lon2 = lon2; this.lat2 = lat2;
+            this.color = color;
+            this.strokeWidth = strokeWidth;
+        }
+    }
+
+    private final List<LiveLine> liveLines = new ArrayList<>();
+    private final AtomicInteger nextLiveLineBianhao = new AtomicInteger(1);
+
+    // ============================================================
     //  跟随地图的 Swing 组件
     // ============================================================
     private static final class GeoComponent {
@@ -264,7 +393,6 @@ public class PaintBoard extends JPanel {
         Source source = null;
         boolean visibleBySource = true;
 
-        // ★ 每个组件自身的缩放上下限（创建时从 PaintBoard 4 个变量读取）
         float minScale = 0.4f;
         float maxScale = 2.5f;
 
@@ -333,7 +461,6 @@ public class PaintBoard extends JPanel {
         public Source source = null;
         public boolean visible = true;
 
-        // ★ 每条文字自身的缩放上下限（创建时从 PaintBoard 4 个变量读取）
         public float minScale = 0.4f;
         public float maxScale = 2.5f;
 
@@ -529,7 +656,7 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
-    //  单个对象覆盖缩放限制（可选 API）
+    //  单个对象覆盖缩放限制
     // ============================================================
     public void setComponentScaleLimit(JComponent comp, float min, float max) {
         if (comp == null) return;
@@ -587,7 +714,10 @@ public class PaintBoard extends JPanel {
                 color, borderColor, textColor, text, textScale, borderWidth);
         d.screenSpace = false;
         geoDots.add(d);
-        if (batchDepth == 0) { markWorldDirty(); repaint(); }
+        if (batchDepth == 0) {
+            if (bakeStaticDots) markWorldDirty();
+            repaint();
+        }
         return d;
     }
 
@@ -598,7 +728,10 @@ public class PaintBoard extends JPanel {
         d.screenSpace = false;
         d.source = source;
         geoDots.add(d);
-        if (batchDepth == 0) { markWorldDirty(); repaint(); }
+        if (batchDepth == 0) {
+            if (bakeStaticDots) markWorldDirty();
+            repaint();
+        }
         return d;
     }
 
@@ -637,7 +770,75 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
-    //  全自动绑定 API（注解驱动）
+    //  Live 直线 API
+    // ============================================================
+    public int addLiveLine(double lon1, double lat1,
+                           double lon2, double lat2) {
+        return addLiveLine(lon1, lat1, lon2, lat2, Color.WHITE, 2f);
+    }
+
+    public int addLiveLine(double lon1, double lat1,
+                           double lon2, double lat2,
+                           Color color) {
+        return addLiveLine(lon1, lat1, lon2, lat2, color, 2f);
+    }
+
+    public int addLiveLine(double lon1, double lat1,
+                           double lon2, double lat2,
+                           Color color, float strokeWidth) {
+        final int bianhao = nextLiveLineBianhao.getAndIncrement();
+        final LiveLine L = new LiveLine(bianhao, lon1, lat1, lon2, lat2,
+                color, strokeWidth);
+        runOnEDT(() -> {
+            liveLines.add(L);
+            repaint();
+        });
+        return bianhao;
+    }
+
+    public void removeLiveLine(int bianhao) {
+        if (bianhao <= 0) return;
+        runOnEDT(() -> {
+            for (int i = 0, n = liveLines.size(); i < n; i++) {
+                if (liveLines.get(i).bianhao == bianhao) {
+                    liveLines.remove(i);
+                    repaint();
+                    return;
+                }
+            }
+        });
+    }
+
+    public void clearLiveLines() {
+        runOnEDT(() -> {
+            if (liveLines.isEmpty()) return;
+            liveLines.clear();
+            repaint();
+        });
+    }
+
+    public LiveLine getLiveLine(int bianhao) {
+        if (bianhao <= 0) return null;
+        for (int i = 0, n = liveLines.size(); i < n; i++) {
+            LiveLine L = liveLines.get(i);
+            if (L.bianhao == bianhao) return L;
+        }
+        return null;
+    }
+
+    public void setLiveLineVisible(int bianhao, boolean visible) {
+        runOnEDT(() -> {
+            LiveLine L = getLiveLine(bianhao);
+            if (L == null || L.visible == visible) return;
+            L.visible = visible;
+            repaint();
+        });
+    }
+
+    public int getLiveLineCount() { return liveLines.size(); }
+
+    // ============================================================
+    //  全自动绑定 API
     // ============================================================
     public dian addAutoDot(Object target, double radiusDeg) {
         Source s = LiveBinder.toSource(target);
@@ -647,7 +848,10 @@ public class PaintBoard extends JPanel {
         d.screenSpace = false;
         geoDots.add(d);
         LiveRegistry.bind(target, this);
-        if (batchDepth == 0) { markWorldDirty(); repaint(); }
+        if (batchDepth == 0) {
+            if (bakeStaticDots) markWorldDirty();
+            repaint();
+        }
         return d;
     }
 
@@ -681,7 +885,10 @@ public class PaintBoard extends JPanel {
         LiveRegistry.bind(pos, this);
         if (colorObj != null) LiveRegistry.bind(colorObj, this);
 
-        if (batchDepth == 0) { markWorldDirty(); repaint(); }
+        if (batchDepth == 0) {
+            if (bakeStaticDots) markWorldDirty();
+            repaint();
+        }
         return d;
     }
 
@@ -690,7 +897,6 @@ public class PaintBoard extends JPanel {
         GeoText t = addGeoTextInternal(
                 s.getText(), s.getLon(), s.getLat(),
                 fontSize, s.getColor(), true);
-        // ★ 从 4 个变量中读取文字缩放限制
         t.minScale = textMinScale;
         t.maxScale = textMaxScale;
         t.source = s;
@@ -704,7 +910,6 @@ public class PaintBoard extends JPanel {
                 s.getText(), s.getLon(), s.getLat(),
                 fontSize, s.getColor(), true);
         t.attachedTo = attachedTo;
-        // ★ 从 4 个变量中读取文字缩放限制
         t.minScale = textMinScale;
         t.maxScale = textMaxScale;
         t.source = s;
@@ -768,7 +973,7 @@ public class PaintBoard extends JPanel {
         if (d == null) return;
         runOnEDT(() -> {
             d.color = color;
-            if (!d.screenSpace) markWorldDirty();
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
             repaint();
         });
     }
@@ -776,41 +981,65 @@ public class PaintBoard extends JPanel {
         if (d == null) return;
         runOnEDT(() -> {
             d.borderColor = color;
-            if (!d.screenSpace) markWorldDirty();
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
             repaint();
         });
     }
     public void setGeoDotTextColor(dian d, Color color) {
         if (d == null) return;
-        runOnEDT(() -> { d.textColor = color; if (!d.screenSpace) markWorldDirty(); repaint(); });
+        runOnEDT(() -> {
+            d.textColor = color;
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
+            repaint();
+        });
     }
     public void setGeoDotText(dian d, String text) {
         if (d == null) return;
-        runOnEDT(() -> { d.text = text; if (!d.screenSpace) markWorldDirty(); repaint(); });
+        runOnEDT(() -> {
+            d.text = text;
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
+            repaint();
+        });
     }
     public void setGeoDotBorderWidth(dian d, float width) {
         if (d == null) return;
-        runOnEDT(() -> { d.borderWidth = width; if (!d.screenSpace) markWorldDirty(); repaint(); });
+        runOnEDT(() -> {
+            d.borderWidth = width;
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
+            repaint();
+        });
     }
     public void setGeoDotStyle(dian d, Color fill, Color border, Color text) {
         if (d == null) return;
         runOnEDT(() -> {
             d.color = fill; d.borderColor = border; d.textColor = text;
-            if (!d.screenSpace) markWorldDirty();
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
             repaint();
         });
     }
     public void setGeoDotLonLat(dian d, double lon, double lat) {
         if (d == null) return;
-        runOnEDT(() -> { d.lon = lon; d.lat = lat; if (!d.screenSpace) markWorldDirty(); repaint(); });
+        runOnEDT(() -> {
+            d.lon = lon; d.lat = lat;
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
+            repaint();
+        });
     }
     public void setGeoDotRadius(dian d, double radiusDeg) {
         if (d == null) return;
-        runOnEDT(() -> { d.radiusDeg = radiusDeg; if (!d.screenSpace) markWorldDirty(); repaint(); });
+        runOnEDT(() -> {
+            d.radiusDeg = radiusDeg;
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
+            repaint();
+        });
     }
     public void setGeoDotVisible(dian d, boolean visible) {
         if (d == null) return;
-        runOnEDT(() -> { d.visible = visible; if (!d.screenSpace) markWorldDirty(); repaint(); });
+        runOnEDT(() -> {
+            d.visible = visible;
+            if (!d.screenSpace && bakeStaticDots) markWorldDirty();
+            repaint();
+        });
     }
 
     // ============================================================
@@ -823,7 +1052,6 @@ public class PaintBoard extends JPanel {
                 this.ppd, bianhao);
         t.outlineColor = new Color(0, 0, 0, 220);
         t.outlineWidth = 2.5f;
-        // ★ 从 4 个变量中读取文字缩放限制
         t.minScale = textMinScale;
         t.maxScale = textMaxScale;
         if (!SwingUtilities.isEventDispatchThread()) {
@@ -991,7 +1219,6 @@ public class PaintBoard extends JPanel {
                 bianhao, comp, lon, lat, anchorX, anchorY, w, h,
                 this.ppd, f, scaleWithZoom);
         gc.source = source;
-        // ★ 从 4 个变量中读取按钮缩放限制
         gc.minScale = buttonMinScale;
         gc.maxScale = buttonMaxScale;
         geoComponents.add(gc);
@@ -1077,7 +1304,7 @@ public class PaintBoard extends JPanel {
                 ng.currentFontSize  = g.currentFontSize;
                 ng.source           = g.source;
                 ng.visibleBySource  = g.visibleBySource;
-                ng.minScale         = g.minScale;   // ★ 保留缩放限制
+                ng.minScale         = g.minScale;
                 ng.maxScale         = g.maxScale;
                 geoComponents.set(i, ng);
                 layoutGeoComponents();
@@ -1162,7 +1389,7 @@ public class PaintBoard extends JPanel {
             ng.currentFontSize = swapped ? -1f : old.currentFontSize;
             ng.source          = old.source;
             ng.visibleBySource = old.visibleBySource;
-            ng.minScale        = old.minScale;   // ★ 保留缩放限制
+            ng.minScale        = old.minScale;
             ng.maxScale        = old.maxScale;
 
             geoComponents.set(idx, ng);
@@ -1181,7 +1408,7 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
-    //  布局：★ 对 scale 做 clamp（使用每对象自身的 min/max）
+    //  布局
     // ============================================================
     private void layoutGeoComponents() {
         if (geoComponents.isEmpty()) return;
@@ -1194,13 +1421,14 @@ public class PaintBoard extends JPanel {
         for (int i = 0, n = geoComponents.size(); i < n; i++) {
             GeoComponent g = geoComponents.get(i);
 
-            int x = (int) Math.round((g.lon - lonCenter) * ppd + halfW);
+            double dLon = g.lon - lonCenter;
+            dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+            int x = (int) Math.round(dLon * ppd + halfW);
             int y = (int) Math.round((latCenter - g.lat) * ppd + halfH);
 
             double scale = 1.0;
             if (g.scaleWithZoom && g.basePpd > 1e-9) {
                 scale = ppd / g.basePpd;
-                // ★ 关键：限制缩放倍数
                 if (scale < g.minScale) scale = g.minScale;
                 if (scale > g.maxScale) scale = g.maxScale;
             }
@@ -1218,7 +1446,6 @@ public class PaintBoard extends JPanel {
                 g.comp.setBounds(px, py, w, h);
             }
 
-            // ★ 字体也按 clamp 后的 scale 缩放
             if (g.scaleWithZoom && g.baseFont != null) {
                 float newSize = (float) (g.baseFont.getSize2D() * scale);
                 if (newSize < 1f) newSize = 1f;
@@ -1272,7 +1499,7 @@ public class PaintBoard extends JPanel {
                     if (!d.screenSpace) dotDirty = true;
                 }
             }
-            if (dotDirty) markWorldDirty();
+            if (dotDirty && bakeStaticDots) markWorldDirty();
         }
 
         final int textCount = geoTexts.size();
@@ -1521,6 +1748,105 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
+    //  取色 API
+    // ============================================================
+    public Color getColorAtLonLat(double lon, double lat) {
+        return getColorAtLonLat(lon, lat, null);
+    }
+
+    public Color getColorAtLonLat(double lon, double lat, Color emptyColor) {
+        if (lat < WORLD_LAT_MIN || lat > WORLD_LAT_MAX) return emptyColor;
+
+        if (!SwingUtilities.isEventDispatchThread()) {
+            final double flon = lon, flat = lat;
+            final Color  femp = emptyColor;
+            final Color[] out = new Color[1];
+            try {
+                SwingUtilities.invokeAndWait(() -> out[0] = getColorAtLonLat(flon, flat, femp));
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return femp;
+            } catch (InvocationTargetException ite) {
+                return femp;
+            }
+            return out[0] != null ? out[0] : femp;
+        }
+
+        if (worldDirty) rebuildWorldCanvas();
+
+        double nlon = normalizeLon(lon);
+        int px = (int) Math.floor((nlon + 180.0) * WORLD_PPD);
+        int py = (int) Math.floor((WORLD_LAT_MAX - lat) * WORLD_PPD);
+
+        if (px < 0) px = 0;
+        if (px >= WORLD_W) px = WORLD_W - 1;
+        if (py < 0) py = 0;
+        if (py >= WORLD_H) py = WORLD_H - 1;
+
+        int argb = worldCanvas.getRGB(px, py);
+        int a = (argb >>> 24) & 0xFF;
+        if (a == 0) return emptyColor;
+        return new Color(argb, true);
+    }
+
+    public Color getColorAtScreen(int x, int y) {
+        return getColorAtScreen(x, y, null);
+    }
+
+    public Color getColorAtScreen(int x, int y, Color emptyColor) {
+        final int W = getWidth(), H = getHeight();
+        if (W <= 0 || H <= 0) return emptyColor;
+        if (x < 0 || y < 0 || x >= W || y >= H) return emptyColor;
+
+        if (!SwingUtilities.isEventDispatchThread()) {
+            final int fx = x, fy = y;
+            final Color femp = emptyColor;
+            final Color[] out = new Color[1];
+            try {
+                SwingUtilities.invokeAndWait(() -> out[0] = getColorAtScreen(fx, fy, femp));
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return femp;
+            } catch (InvocationTargetException ite) {
+                return femp;
+            }
+            return out[0] != null ? out[0] : femp;
+        }
+
+        BufferedImage img = new BufferedImage(W, H, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D ig = img.createGraphics();
+        try {
+            paintComponent(ig);
+        } finally {
+            ig.dispose();
+        }
+
+        int argb = img.getRGB(x, y);
+        int a = (argb >>> 24) & 0xFF;
+        if (a == 0) return emptyColor;
+        return new Color(argb, true);
+    }
+
+    public Color getColorAtLonLatOnScreen(double lon, double lat) {
+        return getColorAtLonLatOnScreen(lon, lat, null);
+    }
+
+    public Color getColorAtLonLatOnScreen(double lon, double lat, Color emptyColor) {
+        if (getWidth() <= 0 || getHeight() <= 0) return emptyColor;
+
+        double nlon = normalizeLon(lon);
+        double d = nlon - lonCenter;
+        while (d >  180.0) d -= 360.0;
+        while (d < -180.0) d += 360.0;
+        double useLon = lonCenter + d;
+
+        int sx = (int) Math.round((useLon - lonCenter) * ppd + getWidth()  / 2.0);
+        int sy = (int) Math.round((latCenter - lat)    * ppd + getHeight() / 2.0);
+
+        return getColorAtScreen(sx, sy, emptyColor);
+    }
+
+    // ============================================================
     //  视图变化检测
     // ============================================================
     private boolean viewChanged() {
@@ -1611,13 +1937,18 @@ public class PaintBoard extends JPanel {
 
         syncLive();
 
-        if (worldDirty) rebuildWorldCanvas();
+        if (bakeStaticDots && worldDirty) rebuildWorldCanvas();
         if (viewChanged()) rebuildVisibleLiveDots();
 
         Graphics2D g2 = (Graphics2D) g.create();
         try {
             drawGridOnScreen(g2, W, H);
             drawWorldCanvas(g2, W, H);
+            drawTrailCanvas(g2, W, H);           // ★ 轨迹层
+            if (!bakeStaticDots) {
+                drawGeoDotsStaticOnScreen(g2, W, H);
+            }
+            drawLiveLines(g2, W, H);
             drawGeoDotsLive(g2, W, H);
             drawGeoTexts(g2, W, H);
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
@@ -1627,6 +1958,233 @@ public class PaintBoard extends JPanel {
             drawHUD(g2, W, H);
         } finally {
             g2.dispose();
+        }
+    }
+
+    // ============================================================
+    //  轨迹层绘制
+    // ============================================================
+    private void drawTrailCanvas(Graphics2D g2, int W, int H) {
+        if (trailCanvas == null) return;
+
+        double scale = ppd / (double) TRAIL_PPD;
+        double tx = (-180 - lonCenter) * ppd + W / 2.0;
+        double ty = (latCenter - 90) * ppd + H / 2.0;
+
+        g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION,
+                RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
+
+        double panelWidthPx = 360.0 * ppd;
+        int copies = computeCopies(W, panelWidthPx);
+
+        AffineTransform at = new AffineTransform();
+        for (int k = -copies; k <= copies; k++) {
+            double x0 = tx + k * panelWidthPx;
+            if (x0 + panelWidthPx < 0) continue;
+            if (x0 > W) continue;
+
+            at.setToTranslation(x0, ty);
+            at.scale(scale, scale);
+            g2.drawImage(trailCanvas, at, null);
+        }
+    }
+
+    // ============================================================
+    //  非 Live 圆点：屏幕直绘（不烘焙 worldCanvas）
+    // ============================================================
+    private void drawGeoDotsStaticOnScreen(Graphics2D g2, int W, int H) {
+        if (geoDots.isEmpty()) return;
+
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                RenderingHints.VALUE_STROKE_PURE);
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING,
+                RenderingHints.VALUE_RENDER_QUALITY);
+
+        double panelWidthPx = 360.0 * ppd;
+        int copies = computeCopies(W, panelWidthPx);
+        double halfW = W * 0.5;
+        double halfH = H * 0.5;
+
+        Map<Color, Path2D.Double> batches = new HashMap<>();
+        List<dian> individual = null;
+
+        for (int i = 0, n = geoDots.size(); i < n; i++) {
+            dian d = geoDots.get(i);
+            if (d.screenSpace) continue;
+            if (!d.visible) continue;
+            if (d.color == null) continue;
+
+            double rPx = d.radiusDeg * ppd;
+            if (rPx < minLiveDotRadiusPx) rPx = minLiveDotRadiusPx;
+
+            double dLon = d.lon - lonCenter;
+            dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+            double baseX = dLon * ppd + halfW;
+            double baseY = (latCenter - d.lat) * ppd + halfH;
+
+            boolean simple = (d.borderWidth <= 0)
+                    && (d.text == null || d.text.isEmpty());
+
+            if (simple) {
+                Path2D.Double path = batches.get(d.color);
+                if (path == null) {
+                    path = new Path2D.Double();
+                    batches.put(d.color, path);
+                }
+                boolean useRect = rPx < 2.0;
+                for (int k = -copies; k <= copies; k++) {
+                    double sx = baseX + k * panelWidthPx;
+                    double sy = baseY;
+                    if (sx + rPx < 0 || sx - rPx > W) continue;
+                    if (sy + rPx < 0 || sy - rPx > H) continue;
+                    if (useRect) {
+                        path.append(new Rectangle2D.Double(
+                                sx - rPx, sy - rPx, rPx * 2, rPx * 2), false);
+                    } else {
+                        path.append(new Ellipse2D.Double(
+                                sx - rPx, sy - rPx, rPx * 2, rPx * 2), false);
+                    }
+                }
+            } else {
+                if (individual == null) individual = new ArrayList<>();
+                individual.add(d);
+            }
+        }
+
+        for (Map.Entry<Color, Path2D.Double> e : batches.entrySet()) {
+            g2.setColor(e.getKey());
+            g2.fill(e.getValue());
+        }
+
+        if (individual != null) {
+            for (int i = 0, m = individual.size(); i < m; i++) {
+                dian d = individual.get(i);
+                double rPx = d.radiusDeg * ppd;
+                if (rPx < minLiveDotRadiusPx) rPx = minLiveDotRadiusPx;
+
+                double dLon = d.lon - lonCenter;
+                dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+                double baseX = dLon * ppd + halfW;
+                double baseY = (latCenter - d.lat) * ppd + halfH;
+
+                for (int k = -copies; k <= copies; k++) {
+                    double sx = baseX + k * panelWidthPx;
+                    double sy = baseY;
+                    if (sx + rPx < 0 || sx - rPx > W) continue;
+                    if (sy + rPx < 0 || sy - rPx > H) continue;
+
+                    if (d.color != null) {
+                        g2.setColor(d.color);
+                        g2.fill(new Ellipse2D.Double(
+                                sx - rPx, sy - rPx, rPx * 2, rPx * 2));
+                    }
+                    if (d.borderWidth > 0) {
+                        Color border = d.borderColor != null ? d.borderColor
+                                : (d.color != null ? d.color.darker() : Color.WHITE);
+                        g2.setColor(border);
+                        g2.setStroke(new BasicStroke(d.borderWidth));
+                        g2.draw(new Ellipse2D.Double(
+                                sx - rPx, sy - rPx, rPx * 2, rPx * 2));
+                    }
+                    if (d.text != null && !d.text.isEmpty()) {
+                        int fs;
+                        if (d.textScale) {
+                            fs = (int) Math.max(9, Math.min(200, rPx * 0.8));
+                        } else {
+                            fs = 12;
+                        }
+                        g2.setFont(new Font(UI_FONT, Font.PLAIN, fs));
+                        g2.setColor(d.textColor != null ? d.textColor : Color.WHITE);
+                        g2.drawString(d.text,
+                                (float) (sx + rPx + 4),
+                                (float) (sy + fs / 3));
+                    }
+                }
+            }
+        }
+    }
+
+    // ============================================================
+    //  只烘焙非 Live 圆点（独立入口）
+    // ============================================================
+    public void bakeGeoDotsOnly() {
+        runOnEDT(() -> {
+            Graphics2D g = worldCanvas.createGraphics();
+            try {
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                        RenderingHints.VALUE_ANTIALIAS_ON);
+                g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+                        RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+                g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                        RenderingHints.VALUE_STROKE_PURE);
+
+                bakingMode = true;
+                try {
+                    bakeGeoDots(g);
+                } finally {
+                    bakingMode = false;
+                }
+            } finally {
+                g.dispose();
+            }
+            repaint();
+        });
+    }
+
+    // ============================================================
+    //  Live 直线绘制
+    // ============================================================
+    private void drawLiveLines(Graphics2D g2, int W, int H) {
+        if (liveLines.isEmpty()) return;
+
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
+                RenderingHints.VALUE_STROKE_PURE);
+
+        double halfW = W * 0.5;
+        double halfH = H * 0.5;
+        double panelWidthPx = 360.0 * ppd;
+        int copies = computeCopies(W, panelWidthPx);
+
+        for (int i = 0, n = liveLines.size(); i < n; i++) {
+            LiveLine L = liveLines.get(i);
+            if (!L.visible) continue;
+
+            Color c = (L.color != null) ? L.color : Color.WHITE;
+            float sw = (L.strokeWidth > 0f) ? L.strokeWidth : 1f;
+
+            double lon2Adj = L.lon2;
+            double dd = lon2Adj - L.lon1;
+            dd = ((dd + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+            lon2Adj = L.lon1 + dd;
+
+            double x1 = (L.lon1   - lonCenter) * ppd + halfW;
+            double y1 = (latCenter - L.lat1)   * ppd + halfH;
+            double x2 = (lon2Adj  - lonCenter) * ppd + halfW;
+            double y2 = (latCenter - L.lat2)   * ppd + halfH;
+
+            double minY = Math.min(y1, y2) - sw;
+            double maxY = Math.max(y1, y2) + sw;
+            if (maxY < 0 || minY > H) continue;
+
+            g2.setColor(c);
+            g2.setStroke(new BasicStroke(sw,
+                    BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+            for (int k = -copies; k <= copies; k++) {
+                double dx = k * panelWidthPx;
+                double ax = x1 + dx;
+                double bx = x2 + dx;
+
+                if ((ax < 0 && bx < 0) || (ax > W && bx > W)) continue;
+
+                g2.draw(new Line2D.Double(ax, y1, bx, y2));
+            }
         }
     }
 
@@ -1731,7 +2289,7 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
-    //  绘制地理文本（★ 用 clamp 后的 scale 算字体）
+    //  绘制地理文本
     // ============================================================
     private void drawGeoTexts(Graphics2D g2, int W, int H) {
         if (geoTexts.isEmpty()) return;
@@ -1753,7 +2311,6 @@ public class PaintBoard extends JPanel {
             float fs = t.baseFontSize;
             if (t.scaleWithZoom && t.basePpd > 1e-9) {
                 double s = ppd / t.basePpd;
-                // ★ 关键：限制缩放倍数
                 if (s < t.minScale) s = t.minScale;
                 if (s > t.maxScale) s = t.maxScale;
                 fs = (float) (t.baseFontSize * s);
@@ -1845,7 +2402,7 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
-    //  世界画布（按缩放倍数切换插值）
+    //  世界画布
     // ============================================================
     private void drawWorldCanvas(Graphics2D g2, int W, int H) {
         double scale = ppd / (double) WORLD_PPD;

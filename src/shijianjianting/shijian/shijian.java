@@ -1,8 +1,11 @@
 package shijianjianting.shijian;
 
+import shijianjianting.bianliang.bingpai.bingmoshuju;
 import shijianjianting.bianliang.guojia.country;
 import shijianjianting.bianliang.bingpai.BINGPAI;
 import shijianjianting.bianliang.chengshi.chengshi;
+import shijianjianting.bianliang.guojia.guojiashili.jingdaichu.qing;
+import shijianjianting.bianliang.guojia.guojiashili.xiandai.china;
 import shijianjianting.bianliang.zuobiao.zuobiao;
 import shunxu.first_daoruguojia.jianting_daoruguojia;
 
@@ -10,7 +13,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.Vector;
 
-import static shijianjianting.gongju.bianliang.board;
+import static shijianjianting.gongju.bianliang.*;
+import static shijianjianting.gongju.bianliang.BUTTON_H;
 
 public class shijian {
 
@@ -80,26 +84,16 @@ public class shijian {
     };
 
     // ==================== 每个城市按钮的点击区域大小（隐形） ====================
-    private static final int BUTTON_W = 8;
-    private static final int BUTTON_H = 6;
+
 
     // ==================== 注册 ====================
     @jianting_daoruguojia
     public static Vector<country> as(Vector<country> a) {
 
         // 数据一致性校验
-        if (CITY_NAMES.length != CITY_LONS.length
-                || CITY_NAMES.length != CITY_LATS.length) {
-            throw new IllegalStateException(
-                    "城市数据长度不一致: names=" + CITY_NAMES.length
-                            + ", lons=" + CITY_LONS.length
-                            + ", lats=" + CITY_LATS.length);
-        }
 
-        // ★ 按 country 构造签名，分别准备两个 Vector<zuobiao> / Vector<chengshi>
-        Vector<zuobiao> chengshiWeizhi = new Vector<>(CITY_NAMES.length);
         Vector<chengshi> chengshiList  = new Vector<>(CITY_NAMES.length);
-        JButton btn = new JButton();
+
         for (int i = 0; i < CITY_NAMES.length; i++) {
             final String cityName = CITY_NAMES[i];
             final double lon = CITY_LONS[i];
@@ -107,11 +101,9 @@ public class shijian {
 
             // 1) 经纬度对象（顺便放进"城市位置"Vector）
             zuobiao zb = new zuobiao(lon, lat);
-            chengshiWeizhi.add(zb);
-            btn = new JButton();
-            // 2) 每个城市一个独立按钮 —— 隐形，只作为点击目标
-            //    （不能用 WUVECTOR，它只接受同一个 JButton，所有城市会共享，点击弹不出各自名字）
 
+            // 3) chengshi 对象（name 用于绘制文字，anniu 用于点击）
+            JButton btn=new JButton();
             btn.setPreferredSize(new Dimension(BUTTON_W, BUTTON_H));
             btn.setContentAreaFilled(false);
             btn.setBorderPainted(false);
@@ -121,29 +113,11 @@ public class shijian {
             btn.addActionListener(e ->
                     JOptionPane.showMessageDialog(board, "点击了：" + cityName));
 
-            // 3) chengshi 对象（name 用于绘制文字，anniu 用于点击）
             chengshiList.add(new chengshi(zb, btn, cityName));
         }
-
-        // 4) 组装 country（4 参构造：国土点 / 城市位置 / 城市列表 / 颜色）
-        btn=new JButton();
-        btn.setPreferredSize(new Dimension(BUTTON_W, BUTTON_H));
-        btn.setContentAreaFilled(false);
-        btn.setBorderPainted(false);
-        btn.setFocusPainted(false);
-        btn.setOpaque(false);
-        btn.setFocusable(false);
-        btn.addActionListener(e ->
-                JOptionPane.showMessageDialog(board, "点击了：" + "首都"));
-        country country1=new country(
-                country.countrys.CHINA.get(),   // 中国国土面点
-                // Vector<zuobiao>
-                chengshiList,                   // Vector<chengshi>
-                Color.RED,new chengshi(new zuobiao(116.40,39.90),btn,"北京"));
-        country1.jundui.add(new BINGPAI((Image) null,10,"a",1,1));
-        a.add(country1);
-
-
+        chengshis=chengshiList;
+        a.add(new china());
+        a.add(new qing());
         return a;
     }
 }
