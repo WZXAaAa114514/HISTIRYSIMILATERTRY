@@ -3,15 +3,26 @@ package neirong.bianliang.bingpai;
 import neirong.bianliang.guojia.country;
 import neirong.bianliang.xuanding.canchosemany;
 import neirong.bianliang.zuobiao.zuobiao;
+import neirong.gongju.gongju;
 import neirong.gongju.xuanranqi.PaintBoard;
 import neirong.gongju.zhujie.Live;
+import shunxu.third_shijianpaifaqiqidong.shijian.beixuanze_DUOXUAN;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
-import static neirong.gongju.bianliang.board;
+import static neirong.gongju.bianliang.*;
 
-public class BINGPAI extends JButton implements canchosemany {
+public class BINGPAI extends JButton
+        implements canchosemany, PaintBoard.TrailPixelSink {
 
     /* ==================== 设计基准（5:2 宽高比） ==================== */
     private static final int BASE_W = 100;
@@ -54,46 +65,20 @@ public class BINGPAI extends JButton implements canchosemany {
     private float   blueBoldFactor = 1.8f;
 
     /* ==================== 轨迹相关 ==================== */
-    /**
-     * 轨迹线宽（屏幕像素）。
-     * <= 0 表示「自动」：跟随缩放，等于 addGeoDot 的点直径（2 * radius * zoom）。
-     */
     private float trailWidth = 0f;
-
-    /** 与 board.addGeoDot(z.x, z.y, 0.005d, color) 中保持一致的半径（世界坐标）。 */
     private double trailDotRadius = 0.005d;
-
-    /** 是否为本兵牌绘制移动轨迹。 */
     private boolean trailEnabled = true;
-
-    /**
-     * 屏幕像素阈值：BINGPAI 从上一次落笔点移动超过这个像素数，
-     * 才往轨迹层写一段新的线。
-     * 实际落笔步进 = max(trailMinScreenPx, 线宽/2)，避免粗线出现折线感。
-     * 建议 2~4，默认 3。
-     */
     private double trailMinScreenPx = 3.0;
-
-    /** 上一次轨迹落笔点（经纬度）。 */
     private double lastTrailLon;
     private double lastTrailLat;
     private boolean trailInitialized = false;
-
-    /** 兵牌当前位置的 Live 点（懒创建，只更新坐标，复用对象）。 */
     private transient PaintBoard.dian myDot;
-
-    /** 是否显示当前位置的点。 */
     private boolean showCurrentDot = true;
 
     /* ---------- 轨迹参数接口 ---------- */
-
-    /** 返回当前设置的线宽；<=0 表示自动。 */
     public float getTrailWidth() { return trailWidth; }
-
-    /** 设置线宽（屏幕像素）；传 0 或负数表示恢复「自动跟随缩放」。 */
     public void setTrailWidth(float w) { this.trailWidth = w; }
 
-    /** 世界坐标下的轨迹点半径，和 addGeoDot 保持一致，默认 0.005d。 */
     public double getTrailDotRadius() { return trailDotRadius; }
     public void setTrailDotRadius(double r) { if (r > 0) this.trailDotRadius = r; }
 
@@ -114,10 +99,6 @@ public class BINGPAI extends JButton implements canchosemany {
         }
     }
 
-    /**
-     * 计算本次落笔使用的轨迹粗细（屏幕像素）。
-     * 自动模式下 = 点半径 * zoom * 2，视觉上和 addGeoDot 的点直径一致。
-     */
     private float computeTrailWidthPx() {
         if (trailWidth > 0f) return trailWidth;
         double zoom = board.getZoom();
@@ -125,7 +106,47 @@ public class BINGPAI extends JButton implements canchosemany {
         return (float) Math.max(1.5d, trailDotRadius * zoom * 2.0d);
     }
 
-    /* ==================== 构造函数 ==================== */
+    /* ============================================================
+     *  ★ 第二步开关
+     * ============================================================ */
+    private boolean dierbuEnabled = false;
+
+    /* ============================================================
+     *  ★ 多线程执行 / 批次处理基础设施
+     * ============================================================ */
+
+    /** meichuzhixing 的业务逻辑执行线程池（daemon）。 */
+    private static final ExecutorService SHARED_WORKER_POOL =
+            Executors.newFixedThreadPool(
+                    Math.max(4, Runtime.getRuntime().availableProcessors()),
+                    r -> {
+                        Thread t = new Thread(r, "meichuzhixing-worker");
+                        t.setDaemon(true);
+                        return t;
+                    });
+
+    /** 批次结束检测线程池（单线程）。 */
+    private static final ExecutorService SHARED_FINISH_POOL =
+            Executors.newSingleThreadExecutor(r -> {
+                Thread t = new Thread(r, "meichuzhixing-finish");
+                t.setDaemon(true);
+                return t;
+            });
+
+    /**
+     * 一个批次的数据。
+     */
+    private static final class BatchData {
+        final List<double[]> pixels = Collections.synchronizedList(new ArrayList<>());
+        final AtomicInteger pending = new AtomicInteger(0);
+    }
+
+    private volatile BatchData currentBatch = new BatchData();
+    private final Object batchLock = new Object();
+
+    /* ============================================================
+     *  ★ 构造函数
+     * ============================================================ */
     public BINGPAI(Image icon,
                    int number,
                    String subText,
@@ -154,7 +175,6 @@ public class BINGPAI extends JButton implements canchosemany {
         this.tasktogo.x = x;
         this.tasktogo.y = y;
 
-        // 初始化轨迹落笔点
         this.lastTrailLon = x;
         this.lastTrailLat = y;
         this.trailInitialized = true;
@@ -465,21 +485,28 @@ public class BINGPAI extends JButton implements canchosemany {
         this.tasktogo = zuobiao;
     }
 
-    /* ==================== 地球仪式寻路 ==================== */
-    /**
-     * 每帧朝 tasktogo 移动 speed 的距离，像在地球仪上一样绕行。
-     *
-     * <p>轨迹用「累积到一定屏幕像素才落笔」策略写入永久轨迹层：
-     * 无论 BINGPAI 移动多慢、地图怎么缩放，轨迹都是肉眼可见的连续线，
-     * 且粗细与 board.addGeoDot(..., trailDotRadius, ...) 画的点一致。</p>
-     */
+    /* ============================================================
+     *  ★ 地球仪式寻路
+     * ============================================================ */
     public void goto_MEIYIZHENZHIXING() {
+
+        // ---- 1) 交换批次：把旧批次交给后台收尾 ----
+        BatchData oldBatch;
+        synchronized (batchLock) {
+            oldBatch = currentBatch;
+            currentBatch = new BatchData();
+        }
+        scheduleBatchFinish(oldBatch);
+
+        // ---- 2) 清空 suozouzuobiao，使它能只反映本次调用 ----
+        clearSuozouzuobiao();
+
+        // ---- 3) 原 goto_MEIYIZHENZHIXING 逻辑 ----
         if(!shuju.gongjizhe.isEmpty()){
 
         }
         if (tasktogo == null || shuju == null) return;
 
-        // 保险：如果因某种原因未初始化，就地初始化
         if (!trailInitialized) {
             lastTrailLon = this.x;
             lastTrailLat = this.y;
@@ -496,7 +523,6 @@ public class BINGPAI extends JButton implements canchosemany {
         double dLat = lat2 - lat1;
 
         if (dLon == 0.0 && dLat == 0.0) {
-            // 已在目标：把尾巴补上，再同步当前位置的点
             flushTrailToCurrent();
             syncCurrentDot();
             return;
@@ -521,18 +547,9 @@ public class BINGPAI extends JButton implements canchosemany {
             this.y = lat1 + t * dLat;
         }
 
-        // ★ 累积落笔：移动量超过阈值才往轨迹层写一段
         maybeAddTrailSegment();
-
-        // ★ 同步当前位置的 Live 点（每帧更新坐标，复用同一个对象）
-        //syncCurrentDot();
     }
 
-    /**
-     * 判断当前位移是否够画一段轨迹。
-     * 使用「屏幕像素」做阈值；步进取 max(用户阈值, 线宽/2)，
-     * 保证不管缩放怎样，轨迹都是连续、清晰的一条线。
-     */
     private void maybeAddTrailSegment() {
         if (!trailEnabled) return;
 
@@ -544,11 +561,11 @@ public class BINGPAI extends JButton implements canchosemany {
         double distPx = Math.sqrt(dxPx * dxPx + dyPx * dyPx);
 
         float wPx = computeTrailWidthPx();
-        // 步进至少覆盖线宽的一半，避免粗线看起来是「断续的短线」
         double stepPx = Math.max(trailMinScreenPx, wPx * 0.5d);
 
         if (distPx >= stepPx) {
-            board.addTrailSegment(lastTrailLon, lastTrailLat,
+            board.addTrailSegment(this,
+                    lastTrailLon, lastTrailLat,
                     this.x, this.y,
                     this.cardColor, wPx);
             lastTrailLon = this.x;
@@ -556,24 +573,22 @@ public class BINGPAI extends JButton implements canchosemany {
         }
     }
 
-    /** 到达目标时把最后一段尾巴补齐。 */
     private void flushTrailToCurrent() {
         if (!trailEnabled || !trailInitialized) return;
         if (lastTrailLon == this.x && lastTrailLat == this.y) return;
 
-        board.addTrailSegment(lastTrailLon, lastTrailLat,
+        board.addTrailSegment(this,
+                lastTrailLon, lastTrailLat,
                 this.x, this.y,
                 this.cardColor, computeTrailWidthPx());
         lastTrailLon = this.x;
         lastTrailLat = this.y;
     }
 
-    /** 复用同一个 Live 点对象，只更新坐标/颜色。 */
     private void syncCurrentDot() {
         if (!showCurrentDot) return;
 
         if (myDot == null) {
-            // 用与 addGeoDot 相同的半径，视觉上轨迹和「当前位置点」一致
             myDot = board.addGeoDotLive(this.x, this.y,
                     trailDotRadius, this.cardColor);
         } else {
@@ -589,5 +604,180 @@ public class BINGPAI extends JButton implements canchosemany {
             board.removeGeoDot(myDot);
             myDot = null;
         }
+        if (board != null) {
+            board.removeOwnerTrails(this);
+        }
+        // 静态共享线程池无需关闭，避免影响其他 BINGPAI 实例。
+    }
+
+    public  void xianshi(){
+        BINGPAI b=this;
+        b= (BINGPAI) gongju.quchuquanbujiantingqi(b);
+        b.bianhao = board.addAutoComponent(b, b);
+        BINGPAI finalB2 = b;
+        BINGPAI finalB = b;
+        b.addActionListener(e -> {
+            try {
+                Boolean succeed=true;
+
+                if(gongju.shiftdown())succeed=xuandingbianliang.add(finalB2);
+                else {
+                    xuandingbianliang.clearall();
+                    succeed=xuandingbianliang.add(finalB2);
+                }
+                if(succeed)EVENTMAIN.post(new beixuanze_DUOXUAN(finalB));
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            }
+
+        });
+    }
+
+    /* ============================================================
+     *  ★ 当前 goto_MEIYIZHENZHIXING 所走路径上的所有坐标
+     * ============================================================ */
+    public List<zuobiao> suozouzuobiao =
+            Collections.synchronizedList(new ArrayList<>());
+
+    /** 去重用的键集合，线程安全。 */
+    private final Set<Long> suozouzuobiaoKeys = ConcurrentHashMap.newKeySet();
+
+    /** 清空 suozouzuobiao 与其去重键集合。 */
+    public void clearSuozouzuobiao() {
+        synchronized (suozouzuobiao) {
+            suozouzuobiao.clear();
+            suozouzuobiaoKeys.clear();
+        }
+    }
+
+    /* ============================================================
+     *  ★ PaintBoard.TrailPixelSink 实现
+     * ============================================================ */
+    @Override
+    public void meichuzhixing(double jingdu, double weidu) {
+
+        BatchData b = currentBatch;
+
+        b.pixels.add(new double[]{jingdu, weidu});
+        b.pending.incrementAndGet();
+
+        SHARED_WORKER_POOL.execute(() -> {
+            try {
+                doMeichuzhixing(jingdu, weidu);
+            } catch (Throwable ignored) {
+            } finally {
+                b.pending.decrementAndGet();
+            }
+        });
+    }
+
+    /**
+     * 真正的 meichuzhixing 业务逻辑，在多线程工作池中执行。
+     */
+    private void doMeichuzhixing(double jingdu, double weidu) {
+        long key = Double.doubleToLongBits(jingdu) * 31L
+                + Double.doubleToLongBits(weidu);
+        if (suozouzuobiaoKeys.add(key)) {
+            zuobiao z = new zuobiao(0, 0);
+            z.x = jingdu;
+            z.y = weidu;
+            suozouzuobiao.add(z);
+        }
+
+        // TODO: 第一步：在这里添加你自己的业务逻辑
+    }
+
+    /**
+     * 把一个批次的「结束处理」提交到 batchFinishPool。
+     */
+    private void scheduleBatchFinish(final BatchData b) {
+        SHARED_FINISH_POOL.execute(() -> {
+            while (b.pending.get() > 0) {
+                try {
+                    Thread.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+            }
+
+            if (!dierbuEnabled) return;
+
+            List<double[]> snapshot;
+            synchronized (b.pixels) {
+                snapshot = new ArrayList<>(b.pixels);
+            }
+
+            for (double[] px : snapshot) {
+                try {
+                    meichuzhixing2(px[0], px[1]);
+                } catch (Throwable ignored) {
+                }
+            }
+        });
+    }
+
+    /* ============================================================
+     *  ★ 第二步回调
+     *
+     *  对每个像素，检查所有国家的所有兵牌：
+     *    - 若对方 suozouzuobiaoKeys 中包含当前像素坐标（O(1)），
+     *      则互相把对方加进自己的 gongjizhe（去重）。
+     *
+     *  性能要点：
+     *    1. 坐标 key 只计算一次；
+     *    2. 用 Set<Long> 做 O(1) 坐标匹配，取代遍历 suozouzuobiao；
+     *    3. 用 bingmoshuju.addGongjizhe 去重，避免重复添加；
+     *    4. 无 System.out 打屏。
+     * ============================================================ */
+    public void meichuzhixing2(double jingdu, double weidu) {
+
+        // 只计算一次坐标 key
+        long key = Double.doubleToLongBits(jingdu) * 31L
+                + Double.doubleToLongBits(weidu);
+
+        if (country == null || country.gongjizhe == null) return;
+
+        for (country c : country.gongjizhe) {
+            if (c == null || c.jundui == null) continue;
+
+            for (int i = 0, n = c.jundui.size(); i < n; i++) {
+                BINGPAI bingpai = c.jundui.get(i);
+                if (bingpai == null || bingpai == this) continue;
+                if (bingpai.shuju == null) continue;
+
+                // O(1) 坐标匹配：对方是否走过当前像素对应的坐标
+                if (!bingpai.suozouzuobiaoKeys.contains(key)) continue;
+
+                // 双向添加攻击者，去重
+                if (bingpai.shuju.gongjizhe.contains(this)
+                        && this.shuju != null
+                        && this.shuju.gongjizhe.contains(bingpai)) {
+                    // 已互相标记，跳过
+                    continue;
+                }
+
+                bingpai.shuju.addGongjizhe(this);
+                if (this.shuju != null) {
+                    this.shuju.addGongjizhe(bingpai);
+                }
+            }
+        }
+    }
+
+    /* ============================================================
+     *  ★ 第二步开关控制
+     * ============================================================ */
+
+    public void kaiqidierbu() {
+        this.dierbuEnabled = true;
+    }
+
+    public void guanbidierbu() {
+        this.dierbuEnabled = false;
+    }
+
+    public boolean isDierbuEnabled() {
+        return dierbuEnabled;
     }
 }

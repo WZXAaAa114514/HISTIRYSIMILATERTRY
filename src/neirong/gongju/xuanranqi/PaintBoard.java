@@ -160,8 +160,29 @@ public class PaintBoard extends JPanel {
     private static final int WORLD_H_HIGH = 180 * WORLD_BASE_PPD;
 
     private MappedPyramid worldPyramid;
-    private MappedPyramid trailPyramid;
     private File pyramidDir;
+
+    // ★ 轨迹层改为“按 owner 分层”，每个 owner 一份金字塔
+    //   GLOBAL_TRAIL_OWNER 用于兼容原来的“全局轨迹”接口。
+    private static final Object GLOBAL_TRAIL_OWNER = new Object();
+
+    /** ★ 每个 owner 的轨迹层。 */
+    private static final class OwnerTrail {
+        final Object owner;
+        final MappedPyramid pyramid;
+        volatile boolean hasAny = false;
+        OwnerTrail(Object owner, MappedPyramid pyramid) {
+            this.owner = owner;
+            this.pyramid = pyramid;
+        }
+    }
+
+    private final Map<Object, OwnerTrail> ownerTrails = new ConcurrentHashMap<>();
+
+    /** ★ 轨迹像素回调接口。只有实现了此接口的 owner，才会收到 meichuzhixing 回调。 */
+    public interface TrailPixelSink {
+        void meichuzhixing(double jingdu, double weidu);
+    }
 
     private volatile boolean worldDirty = true;
     private volatile boolean hasAnyTrails = false;
@@ -198,25 +219,96 @@ public class PaintBoard extends JPanel {
     public boolean isTrailForceOpaque() { return trailForceOpaque; }
     public void setTrailForceOpaque(boolean on) { this.trailForceOpaque = on; }
 
-    /** 清空全部轨迹（所有层级）。 */
+    // ★ 惰性创建某个 owner 的轨迹层
+    private OwnerTrail ensureOwnerTrail(Object owner) {
+        if (owner == null) owner = GLOBAL_TRAIL_OWNER;
+        OwnerTrail ot = ownerTrails.get(owner);
+        if (ot != null) return ot;
+        synchronized (ownerTrails) {
+            ot = ownerTrails.get(owner);
+            if (ot != null) return ot;
+            try {
+                File dir = new File(pyramidDir,
+                        "trail_" + Integer.toHexString(System.identityHashCode(owner))
+                                + "_" + ownerTrails.size());
+                MappedPyramid p = new MappedPyramid(dir, TRAIL_BASE_PPD, TRAIL_LEVELS);
+                ot = new OwnerTrail(owner, p);
+                ownerTrails.put(owner, ot);
+            } catch (IOException e) {
+                throw new RuntimeException("无法创建轨迹金字塔", e);
+            }
+        }
+        return ot;
+    }
+
+    /** 清空全部轨迹（所有 owner、所有层级）。 */
     public void clearTrails() {
         runOnEDT(() -> {
-            trailPyramid.clear();
+            for (OwnerTrail ot : ownerTrails.values()) {
+                ot.pyramid.clear();
+                ot.hasAny = false;
+            }
             hasAnyTrails = false;
             repaint();
         });
     }
 
+    /** ★ 清空某个 owner 的轨迹。 */
+    public void clearTrails(Object owner) {
+        final Object fOwner = (owner != null) ? owner : GLOBAL_TRAIL_OWNER;
+        runOnEDT(() -> {
+            OwnerTrail ot = ownerTrails.get(fOwner);
+            if (ot == null) return;
+            ot.pyramid.clear();
+            ot.hasAny = false;
+            boolean any = false;
+            for (OwnerTrail x : ownerTrails.values()) {
+                if (x.hasAny) { any = true; break; }
+            }
+            hasAnyTrails = any;
+            repaint();
+        });
+    }
+
+    /** ★ 移除某个 owner 的轨迹层（释放磁盘资源）。 */
+    public void removeOwnerTrails(Object owner) {
+        if (owner == null || owner == GLOBAL_TRAIL_OWNER) return;
+        runOnEDT(() -> {
+            OwnerTrail ot = ownerTrails.remove(owner);
+            if (ot == null) return;
+            try { ot.pyramid.close(); } catch (Exception ignored) {}
+            boolean any = false;
+            for (OwnerTrail x : ownerTrails.values()) {
+                if (x.hasAny) { any = true; break; }
+            }
+            hasAnyTrails = any;
+            repaint();
+        });
+    }
+
     /**
-     * 追加一条轨迹线段（世界坐标 + 屏幕像素宽度）。
-     * <p>写入时会同时更新金字塔中每一层，让不同缩放级别下看到的一致。</p>
+     * 追加一条轨迹线段到全局层（旧接口，保持兼容）。
      */
     public void addTrailSegment(double lon1, double lat1,
+                                double lon2, double lat2,
+                                Color color, float screenWidthPx) {
+        addTrailSegment(GLOBAL_TRAIL_OWNER, lon1, lat1, lon2, lat2, color, screenWidthPx);
+    }
+
+    /**
+     * ★ 追加一条轨迹线段到指定 owner 的轨迹层。
+     * <p>只有该 owner 实现了 {@link TrailPixelSink} 时，绘制它自己的轨迹像素才会回调。</p>
+     */
+    public void addTrailSegment(Object owner,
+                                double lon1, double lat1,
                                 double lon2, double lat2,
                                 Color color, float screenWidthPx) {
         if (!trailEnabled) return;
         if (color == null) color = Color.WHITE;
         if (screenWidthPx <= 0f) screenWidthPx = 1f;
+
+        final Object fOwner = (owner != null) ? owner : GLOBAL_TRAIL_OWNER;
+        final OwnerTrail ot = ensureOwnerTrail(fOwner);
 
         Color baseColor = color;
         if (trailForceOpaque && color.getAlpha() != 255) {
@@ -233,9 +325,9 @@ public class PaintBoard extends JPanel {
             double p = ppd;
             if (!(p > 0)) p = 1;
 
-            for (int lv = 0; lv < trailPyramid.levels; lv++) {
-                MappedImage img = trailPyramid.get(lv);
-                int srcPpd = trailPyramid.getPpd(lv);
+            for (int lv = 0; lv < ot.pyramid.levels; lv++) {
+                MappedImage img = ot.pyramid.get(lv);
+                int srcPpd = ot.pyramid.getPpd(lv);
 
                 double nLon1 = normalizeLon(fLon1);
                 double dLon = fLon2 - fLon1;
@@ -285,20 +377,27 @@ public class PaintBoard extends JPanel {
                 img.writeRect(tile, bx1, by1);
             }
 
+            ot.hasAny = true;
             hasAnyTrails = true;
             repaint();
         });
     }
 
-    /** 追加一个轨迹点（用零长度线段 + CAP_ROUND 渲染成圆）。 */
+    /** 追加一个轨迹点（全局层）。 */
     public void addTrailDot(double lon, double lat,
+                            double radiusDeg, Color color) {
+        addTrailDot(GLOBAL_TRAIL_OWNER, lon, lat, radiusDeg, color);
+    }
+
+    /** ★ 追加一个轨迹点到指定 owner 的轨迹层。 */
+    public void addTrailDot(Object owner, double lon, double lat,
                             double radiusDeg, Color color) {
         if (!trailEnabled) return;
         if (color == null) color = Color.WHITE;
         double p = ppd;
         if (!(p > 0)) p = 1;
         float w = (float) Math.max(1.0, 2.0 * radiusDeg * p);
-        addTrailSegment(lon, lat, lon, lat, color, w);
+        addTrailSegment(owner, lon, lat, lon, lat, color, w);
     }
 
     // ==================== 静态颜色/字体 ====================
@@ -370,11 +469,12 @@ public class PaintBoard extends JPanel {
     }
 
     // ==================== 鼠标快照 ====================
-    private static final class MouseSnapshot {
-        final double lon, lat;
+    public static final class MouseSnapshot {
+        public final double lon;
+        public final double lat;
         MouseSnapshot(double lon, double lat) { this.lon = lon; this.lat = lat; }
     }
-    public volatile MouseSnapshot mouseSnap = null;
+    public  MouseSnapshot mouseSnap = null;
 
     // ==================== 世界边界 ====================
     private static final double WORLD_LAT_MIN = -90;
@@ -711,15 +811,22 @@ public class PaintBoard extends JPanel {
         try {
             worldPyramid = new MappedPyramid(
                     new File(pyramidDir, "world"), WORLD_BASE_PPD, WORLD_LEVELS);
-            trailPyramid = new MappedPyramid(
-                    new File(pyramidDir, "trail"), TRAIL_BASE_PPD, TRAIL_LEVELS);
+
+            // ★ 创建全局轨迹层
+            OwnerTrail globalTrail = new OwnerTrail(
+                    GLOBAL_TRAIL_OWNER,
+                    new MappedPyramid(new File(pyramidDir, "trail"),
+                            TRAIL_BASE_PPD, TRAIL_LEVELS));
+            ownerTrails.put(GLOBAL_TRAIL_OWNER, globalTrail);
         } catch (IOException e) {
             throw new RuntimeException("无法创建磁盘金字塔", e);
         }
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try { worldPyramid.close(); } catch (Exception ignored) {}
-            try { trailPyramid.close(); } catch (Exception ignored) {}
+            for (OwnerTrail ot : ownerTrails.values()) {
+                try { ot.pyramid.close(); } catch (Exception ignored) {}
+            }
             deleteRecursively(pyramidDir);
         }));
 
@@ -2179,10 +2286,18 @@ public class PaintBoard extends JPanel {
     }
 
     // ============================================================
-    //  轨迹层绘制：从金字塔读取
+    //  ★ 轨迹层绘制：逐个 owner 绘制，只对该 owner 回调
     // ============================================================
     private void drawTrailCanvas(Graphics2D g2, int W, int H) {
         if (!hasAnyTrails) return;
+        for (OwnerTrail ot : ownerTrails.values()) {
+            if (!ot.hasAny) continue;
+            drawOwnerTrailCanvas(g2, W, H, ot);
+        }
+    }
+
+    private void drawOwnerTrailCanvas(Graphics2D g2, int W, int H, OwnerTrail ot) {
+        MappedPyramid trailPyramid = ot.pyramid;
 
         int level = trailPyramid.pickLevel(ppd);
         MappedImage img = trailPyramid.get(level);
@@ -2216,10 +2331,75 @@ public class PaintBoard extends JPanel {
 
             double sx = x0 + scale * cx1;
             double sy = ty + scale * cy1;
+
+            int dstX1 = (int) Math.round(sx);
+            int dstY1 = (int) Math.round(sy);
+            int dstX2 = (int) Math.round(sx + scale * cw);
+            int dstY2 = (int) Math.round(sy + scale * ch);
+
+            // ★ 只对该 owner 的轨迹像素回调
+            notifyTrailPixels(ot.owner, region, dstX1, dstY1, dstX2, dstY2, W, H);
+
             g2.drawImage(region,
-                    (int) Math.round(sx),               (int) Math.round(sy),
-                    (int) Math.round(sx + scale * cw),  (int) Math.round(sy + scale * ch),
+                    dstX1, dstY1, dstX2, dstY2,
                     0, 0, cw, ch, null);
+        }
+    }
+
+    // ============================================================
+    //  ★ 轨迹像素回调辅助方法
+    //
+    //  只有当 owner 实现了 TrailPixelSink 时才会回调 meichuzhixing。
+    //  遍历本次 drawImage 会画到屏幕上的每个像素，如果该屏幕像素对应
+    //  region 源像素 alpha != 0，则认为是该 owner 的拖尾像素，
+    //  将其屏幕像素中心反算成经纬度并调用 owner.meichuzhixing。
+    // ============================================================
+    private void notifyTrailPixels(Object owner,
+                                   BufferedImage region,
+                                   int dstX1, int dstY1,
+                                   int dstX2, int dstY2,
+                                   int W, int H) {
+        if (!(owner instanceof TrailPixelSink)) return;
+        TrailPixelSink sink = (TrailPixelSink) owner;
+
+        int dw = dstX2 - dstX1;
+        int dh = dstY2 - dstY1;
+        if (dw <= 0 || dh <= 0) return;
+
+        int cw = region.getWidth();
+        int ch = region.getHeight();
+        if (cw <= 0 || ch <= 0) return;
+
+        int x1 = Math.max(0, dstX1);
+        int y1 = Math.max(0, dstY1);
+        int x2 = Math.min(W, dstX2);
+        int y2 = Math.min(H, dstY2);
+        if (x1 >= x2 || y1 >= y2) return;
+
+        for (int py = y1; py < y2; py++) {
+            for (int px = x1; px < x2; px++) {
+
+                // 屏幕像素中心映射到 region 中的源像素
+                double rx = (px + 0.5 - dstX1) * cw / (double) dw;
+                double ry = (py + 0.5 - dstY1) * ch / (double) dh;
+
+                int ix = (int) Math.floor(rx);
+                int iy = (int) Math.floor(ry);
+                if (ix < 0 || ix >= cw || iy < 0 || iy >= ch) continue;
+
+                int argb = region.getRGB(ix, iy);
+                int alpha = (argb >>> 24) & 0xFF;
+                if (alpha == 0) continue;
+
+                // 当前屏幕像素中心反算经纬度
+                double lon = lonCenter + (px + 0.5 - W / 2.0) / ppd;
+                double lat = latCenter - (py + 0.5 - H / 2.0) / ppd;
+
+                lon = normalizeLon(lon);
+                if (lat < WORLD_LAT_MIN || lat > WORLD_LAT_MAX) continue;
+
+                sink.meichuzhixing(lon, lat);
+            }
         }
     }
 
@@ -2785,6 +2965,7 @@ public class PaintBoard extends JPanel {
         g2.drawString("左键拖拽旋转 · 滚轮缩放 · 右键框选", 12, 42);
 
         MouseSnapshot s = mouseSnap;
+
         if (s != null) {
             g2.setColor(HUD_COLOR_MOUSE);
             g2.drawString(String.format("鼠标  经度 %.2f 度  纬度 %.2f 度",

@@ -50,25 +50,7 @@ public class country {
 
         // ---------- 军队 ----------
         for (BINGPAI b : this.jundui) {
-            b= (BINGPAI) gongju.quchuquanbujiantingqi(b);
-            b.bianhao = board.addAutoComponent(b, b);
-            BINGPAI finalB2 = b;
-            BINGPAI finalB = b;
-            b.addActionListener(e -> {
-                try {
-                    Boolean succeed=true;
-
-                    if(gongju.shiftdown())succeed=xuandingbianliang.add(finalB2);
-                    else {
-                        xuandingbianliang.clearall();
-                        succeed=xuandingbianliang.add(finalB2);
-                    }
-                    if(succeed)EVENTMAIN.post(new beixuanze_DUOXUAN(finalB));
-                } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                }
-
-            });
+            b.xianshi();
 
 
         }

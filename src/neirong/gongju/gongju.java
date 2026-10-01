@@ -109,8 +109,9 @@ public class gongju {
         return diff;
     }
     public static void tanchuyemian(JPanel yemian){
-        bianliang.board.add(yemian);
+        bianliang.gameframe.getLayeredPane().add(yemian, JLayeredPane.POPUP_LAYER);
     }
+    public static void xuanzhan(J)
 
     // ================== 测试 ==================
 

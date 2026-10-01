@@ -1,6 +1,9 @@
 package neirong.shijian;
 
+import neirong.bianliang.bingpai.bingmoshuju;
+import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
+import neirong.gongju.xuanranqi.PaintBoard;
 import neirong.yemian.kongzhitai.kongzhitai;
 import shijian.shijian.OnTimeChange;
 import neirong.bianliang.bingpai.BINGPAI;
@@ -9,10 +12,13 @@ import neirong.bianliang.zuobiao.zuobiao;
 import shunxu.third_shijianpaifaqiqidong.SubscribeEvent;
 import shunxu.third_shijianpaifaqiqidong.shijian.*;
 
+import java.awt.*;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.*;
 
 import static neirong.gongju.bianliang.*;
@@ -97,14 +103,28 @@ public class MyListener {
 
     }
     @SubscribeEvent
+    public void kongzhitaijianting(kongzhitaifasong neirong){
+
+        if(Objects.equals(neirong.zhiling[0], "summon")){
+            System.out.println(neirong.zhiling[0]);
+            PaintBoard.MouseSnapshot a= board.mouseSnap;
+            if(board.mouseSnap==null){
+                BINGPAI bingpai=new BINGPAI((Image) null,10,"a",0,0, bianliang.countries.get(0),new bingmoshuju(300),Color.yellow);
+
+                bianliang.countries.get(0).jundui.add(bingpai);
+                bingpai.xianshi();
+                neirong.returnwenzi= "0";
+            }        }
+    }
+    @SubscribeEvent
     public void kongzhitai(anjian anjian){
 
         if(anjian.getANJIAN().contains("后引号")&&anjian.getANJIAN().contains("Shift")){
             System.out.println(anjian.getANJIAN());
-            kongzhitai kongzhitai=new kongzhitai();
-            kongzhitai.setBounds(100, 100, 286, 318);
-            gongju.tanchuyemian(kongzhitai
-            );
+
+
+            kongzhitai.kai();
+
         }
     }
 }
