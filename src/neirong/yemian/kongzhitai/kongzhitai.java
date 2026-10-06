@@ -62,7 +62,7 @@ public class kongzhitai extends ketuodongjilei {
 
         // 通知 layeredPane 重新布局并重绘
         frame.getLayeredPane().revalidate();
-        frame.getLayeredPane().repaint();
+
     }
 
     public static kongzhitai getInstance() {

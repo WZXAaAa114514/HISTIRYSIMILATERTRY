@@ -142,7 +142,7 @@ public class huizhi extends JPanel {
 
         runOnEDT(() -> {
             applyPalette();     // 重新取色 + 更新边框 + 更新标签颜色
-            repaint();
+    
         });
     }
 
@@ -229,8 +229,8 @@ public class huizhi extends JPanel {
                 new EmptyBorder(8, 14, 8, 12)));
 
         revalidate();          // 边框变化 → 内部可用区域变化
-        speedBar.repaint();
-        repaint();
+
+
     }
 
     /** 渐变缓存：高度变化或暂停状态变化时重建 */
@@ -370,7 +370,7 @@ public class huizhi extends JPanel {
                     int idx = hitTest(e.getX());
                     if (idx != hover) {
                         hover = idx;
-                        repaint();
+                
                     }
                 }
 
@@ -378,7 +378,7 @@ public class huizhi extends JPanel {
                 public void mouseExited(MouseEvent e) {
                     if (hover != -1) {
                         hover = -1;
-                        repaint();
+                
                     }
                 }
             };
@@ -479,7 +479,7 @@ public class huizhi extends JPanel {
             }
 
             frame.revalidate();
-            frame.repaint();
+
         });
     }
 }

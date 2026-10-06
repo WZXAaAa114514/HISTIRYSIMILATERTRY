@@ -19,7 +19,7 @@ public class gongjikuang extends ketuodongjilei {
     public gongjikuang() {
         initComponents();
         board.revalidate();
-        board.repaint();
+        
     }
 
     private void initComponents() {

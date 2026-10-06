@@ -45,7 +45,7 @@ public class country {
 //
 //            });
 //            // 可选：若希望 setter 立刻重绘（不依赖定时器）：
-//            // cs.bind(board::repaint);
+//            // cs.bind(board::);
 //        }
 
         // ---------- 军队 ----------

@@ -14,7 +14,7 @@ import java.util.WeakHashMap;
 
 /**
  * 全局注册表。
- * 绑定的对象会被定时器每 tick 一次比较所有 @Live 字段，发现变化就 repaint。
+ * 绑定的对象会被定时器每 tick 一次比较所有 @Live 字段，发现变化就 。
  */
 public final class LiveRegistry {
 
@@ -104,7 +104,7 @@ public final class LiveRegistry {
             for (int i = 0, n = slots.size(); i < n; i++) {
                 if (slots.get(i).refresh()) dirty = true;
             }
-            if (dirty) board.repaint();
+
         }
     }
 

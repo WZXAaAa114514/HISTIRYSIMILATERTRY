@@ -14,7 +14,7 @@ public class huahua {
         SwingUtilities.invokeLater(() -> {
 
             gameframe.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-            gameframe.setUndecorated(true);
+               gameframe.setUndecorated(true);
 
             JPanel panel = new JPanel(new BorderLayout());
             panel.setBackground(Color.BLACK);

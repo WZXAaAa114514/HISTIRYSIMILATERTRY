@@ -3,6 +3,7 @@ package neirong.bianliang.bingpai;
 import neirong.bianliang.guojia.country;
 import neirong.bianliang.xuanding.canchosemany;
 import neirong.bianliang.zuobiao.zuobiao;
+import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
 import neirong.gongju.xuanranqi.PaintBoard;
 import neirong.gongju.zhujie.Live;
@@ -15,14 +16,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static neirong.gongju.bianliang.*;
 
-public class BINGPAI extends JButton
-        implements canchosemany, PaintBoard.TrailPixelSink {
+public class BINGPAI extends JButton implements canchosemany {
 
     /* ==================== 设计基准（5:2 宽高比） ==================== */
     private static final int BASE_W = 100;
@@ -75,7 +73,6 @@ public class BINGPAI extends JButton
     private transient PaintBoard.dian myDot;
     private boolean showCurrentDot = true;
 
-    /* ---------- 轨迹参数接口 ---------- */
     public float getTrailWidth() { return trailWidth; }
     public void setTrailWidth(float w) { this.trailWidth = w; }
 
@@ -107,42 +104,112 @@ public class BINGPAI extends JButton
     }
 
     /* ============================================================
-     *  ★ 第二步开关
+     *  ★ 高频 tick 优化：累加步数 + 时间窗口一次性执行
      * ============================================================ */
-    private boolean dierbuEnabled = false;
+    private final AtomicInteger pendingTickCount = new AtomicInteger(0);
+    private volatile long lastFlushNanos = 0L;
+    private volatile long tickFlushWindowNanos = 4_000_000L; // 4ms，约 250Hz
 
-    /* ============================================================
-     *  ★ 多线程执行 / 批次处理基础设施
-     * ============================================================ */
-
-    /** meichuzhixing 的业务逻辑执行线程池（daemon）。 */
-    private static final ExecutorService SHARED_WORKER_POOL =
-            Executors.newFixedThreadPool(
-                    Math.max(4, Runtime.getRuntime().availableProcessors()),
-                    r -> {
-                        Thread t = new Thread(r, "meichuzhixing-worker");
-                        t.setDaemon(true);
-                        return t;
-                    });
-
-    /** 批次结束检测线程池（单线程）。 */
-    private static final ExecutorService SHARED_FINISH_POOL =
-            Executors.newSingleThreadExecutor(r -> {
-                Thread t = new Thread(r, "meichuzhixing-finish");
-                t.setDaemon(true);
-                return t;
-            });
-
-    /**
-     * 一个批次的数据。
-     */
-    private static final class BatchData {
-        final List<double[]> pixels = Collections.synchronizedList(new ArrayList<>());
-        final AtomicInteger pending = new AtomicInteger(0);
+    public void setTickFlushWindowMillis(long ms) {
+        tickFlushWindowNanos = Math.max(0L, ms) * 1_000_000L;
     }
 
-    private volatile BatchData currentBatch = new BatchData();
-    private final Object batchLock = new Object();
+    public void tick() {
+        pendingTickCount.incrementAndGet();
+
+        long now = System.nanoTime();
+        if (now - lastFlushNanos < tickFlushWindowNanos) return;
+        lastFlushNanos = now;
+
+        int steps = pendingTickCount.getAndSet(0);
+        if (steps <= 0) return;
+
+        try {
+            goto_MEIYIZHENZHIXING(steps);
+            syncCurrentDot();
+        } catch (Throwable t) {
+            // 单帧异常不影响后续帧
+        }
+    }
+
+    /* ============================================================
+     *  ★ 每帧单步执行：自动捕获 goto_MEIYIZHENZHIXING 前后的位置
+     * ============================================================ */
+    /**
+     * 每一帧调用一次。
+     * 内部自动记录移动前位置 (a, b) 和移动后位置 (x, y)，
+     * 并调用带参版本 tick_go(a, b, x, y) 以便扩展处理。
+     */
+    public void tick_go() {
+        // ① 记录移动前位置
+        double a = this.x;
+        double b = this.y;
+
+        // ② 执行单步移动（内部包含轨迹段记录、路径点采样等）
+        goto_MEIYIZHENZHIXING(1);
+
+        // ③ 记录移动后位置
+        double x = this.x;
+        double y = this.y;
+
+        // ④ 交给带参版本处理位置变化
+        tick_go(a, b, x, y);
+
+        // ⑤ 同步当前位置点（显示光点）
+        syncCurrentDot();
+    }
+
+    /**
+     * 处理一次位置变化。
+     * 默认留空，因为轨迹段与路径点已在 goto_MEIYIZHENZHIXING 内部处理。
+     * 如需在此处扩展逻辑（如记录位移、触发事件等），可重写或修改此方法。
+     *
+     * @param a 移动前经度
+     * @param b 移动前纬度
+     * @param x 移动后经度
+     * @param y 移动后纬度
+     */
+    public static boolean a_blianx_ybanjingsizekanx1_y1shifouzaikuangnei(double a, double b, double x, double y, double x1, double y1, double size) {
+        // 向量 AB
+        double abX = x - a;
+        double abY = y - b;
+        // 向量 AP
+        double apX = x1 - a;
+        double apY = y1 - b;
+
+        // 点积
+        double dot = apX * abX + apY * abY;
+        // 如果点积 <=0，离A点最近，判断到A点距离
+        if (dot <= 0) {
+            double distSq = apX * apX + apY * apY;
+            return distSq <= size * size;
+        }
+
+        // AB长度平方
+        double abLenSq = abX * abX + abY * abY;
+        // 投影超过B点，判断到B点距离
+        if (dot >= abLenSq) {
+            double bpX = x1 - x;
+            double bpY = y1 - y;
+            double distSq = bpX * bpX + bpY * bpY;
+            return distSq <= size * size;
+        }
+
+        // 在线段中间区域：点到线段距离
+        double dist = Math.abs(abX * apY - abY * apX) / Math.sqrt(abLenSq);
+        return dist <= size;
+    }
+    public void tick_go(double a, double b, double x, double y) {
+        for (country country1:this.country.gongjizhe){
+            for (BINGPAI bingpai:country1.jundui){
+                if(a_blianx_ybanjingsizekanx1_y1shifouzaikuangnei(a,b,x,y,bingpai.x,bingpai.y,0.005)){
+                    bingpai.shuju.gongjizhe.add(this);
+                    this.shuju.gongjizhe.add(bingpai);
+                //todo
+            }
+        }
+    }
+
 
     /* ============================================================
      *  ★ 构造函数
@@ -224,21 +291,19 @@ public class BINGPAI extends JButton
         setPreferredSize(d);
         setSize(d);
         revalidate();
-        repaint();
     }
 
     /* ==================== get / set ==================== */
     public Image getIconImage() { return icon; }
-    public void setIconImage(Image icon) { this.icon = icon; repaint(); }
+    public void setIconImage(Image icon) { this.icon = icon; }
 
     public int getNumber() { return number; }
-    public void setNumber(int number) { this.number = number; repaint(); }
+    public void setNumber(int number) { this.number = number; }
     public void addNumber(int delta) { setNumber(this.number + delta); }
 
     public String getSubText() { return subText; }
     public void setSubText(String subText) {
         this.subText = subText == null ? "" : subText;
-        repaint();
     }
 
     public Color getCardColor() { return cardColor; }
@@ -246,7 +311,6 @@ public class BINGPAI extends JButton
     public void setCardColor(Color cardColor) {
         this.cardColor = cardColor == null ? DEFAULT_CARD_COLOR : cardColor;
         super.setBackground(this.cardColor);
-        repaint();
     }
 
     public void setColor(Color color) { setCardColor(color); }
@@ -256,20 +320,17 @@ public class BINGPAI extends JButton
     public Color getBorderColor() { return borderColor; }
     public void setBorderColor(Color borderColor) {
         this.borderColor = borderColor == null ? DEFAULT_BORDER_COLOR : borderColor;
-        repaint();
     }
 
     public Color getNumberColor() { return numberColor; }
     public void setNumberColor(Color numberColor) {
         this.numberColor = numberColor == null ? DEFAULT_NUMBER_COLOR : numberColor;
         super.setForeground(this.numberColor);
-        repaint();
     }
 
     public Color getSubTextColor() { return subTextColor; }
     public void setSubTextColor(Color subTextColor) {
         this.subTextColor = subTextColor == null ? DEFAULT_SUBTEXT_COLOR : subTextColor;
-        repaint();
     }
 
     public void setColors(Color card, Color border, Color number, Color subText) {
@@ -279,7 +340,6 @@ public class BINGPAI extends JButton
         if (subText != null) this.subTextColor = subText;
         super.setBackground(this.cardColor);
         super.setForeground(this.numberColor);
-        repaint();
     }
 
     public void autoNumberColor() {
@@ -293,7 +353,6 @@ public class BINGPAI extends JButton
     public void setBackground(Color bg) {
         super.setBackground(bg);
         this.cardColor = (bg == null) ? DEFAULT_CARD_COLOR : bg;
-        repaint();
     }
 
     @Override
@@ -304,7 +363,6 @@ public class BINGPAI extends JButton
         super.setForeground(fg);
         if (fg != null) {
             this.numberColor = fg;
-            repaint();
         }
     }
 
@@ -314,29 +372,26 @@ public class BINGPAI extends JButton
     public double getMoralePercent() { return moralePercent; }
     public void setMoralePercent(double moralePercent) {
         this.moralePercent = Math.max(0.0, Math.min(1.0, moralePercent));
-        repaint();
     }
 
     public boolean isSelected() { return selected; }
     @Override public void setSelected(boolean selected) {
         this.selected = selected;
-        repaint();
     }
 
     public boolean isShowMoraleBar() { return showMoraleBar; }
     public void setShowMoraleBar(boolean showMoraleBar) {
         this.showMoraleBar = showMoraleBar;
-        repaint();
     }
 
     public Font getNumberFont() { return numberFont; }
     public void setNumberFont(Font numberFont) {
-        if (numberFont != null) { this.numberFont = numberFont; repaint(); }
+        if (numberFont != null) { this.numberFont = numberFont; }
     }
 
     public Font getSubTextFont() { return subTextFont; }
     public void setSubTextFont(Font subTextFont) {
-        if (subTextFont != null) { this.subTextFont = subTextFont; repaint(); }
+        if (subTextFont != null) { this.subTextFont = subTextFont; }
     }
 
     public void setCardSize(int width, int height) {
@@ -348,29 +403,26 @@ public class BINGPAI extends JButton
     /* ==================== 蓝色加粗边框 控制 ==================== */
     public void xianshilansebiankuang() {
         this.blueBoldBorder = true;
-        repaint();
     }
 
     public void quxiaolansebiankuang() {
         this.blueBoldBorder = false;
-        repaint();
     }
 
     public void setBlueBoldBorder(boolean on) {
         this.blueBoldBorder = on;
-        repaint();
     }
 
     public boolean isBlueBoldBorder() { return blueBoldBorder; }
 
     public Color getBlueBoldColor() { return blueBoldColor; }
     public void setBlueBoldColor(Color c) {
-        if (c != null) { this.blueBoldColor = c; repaint(); }
+        if (c != null) { this.blueBoldColor = c; }
     }
 
     public float getBlueBoldFactor() { return blueBoldFactor; }
     public void setBlueBoldFactor(float f) {
-        if (f > 0f) { this.blueBoldFactor = f; repaint(); }
+        if (f > 0f) { this.blueBoldFactor = f; }
     }
 
     /* ==================== 绘制 ==================== */
@@ -486,26 +538,14 @@ public class BINGPAI extends JButton
     }
 
     /* ============================================================
-     *  ★ 地球仪式寻路
+     *  ★ 地球仪式寻路（合并步数版）
      * ============================================================ */
     public void goto_MEIYIZHENZHIXING() {
+        goto_MEIYIZHENZHIXING(1);
+    }
 
-        // ---- 1) 交换批次：把旧批次交给后台收尾 ----
-        BatchData oldBatch;
-        synchronized (batchLock) {
-            oldBatch = currentBatch;
-            currentBatch = new BatchData();
-        }
-        scheduleBatchFinish(oldBatch);
-
-        // ---- 2) 清空 suozouzuobiao，使它能只反映本次调用 ----
-        clearSuozouzuobiao();
-
-        // ---- 3) 原 goto_MEIYIZHENZHIXING 逻辑 ----
-        if(!shuju.gongjizhe.isEmpty()){
-
-        }
-        if (tasktogo == null || shuju == null) return;
+    public void goto_MEIYIZHENZHIXING(int steps) {
+        if (tasktogo == null || shuju == null || steps <= 0) return;
 
         if (!trailInitialized) {
             lastTrailLon = this.x;
@@ -536,7 +576,7 @@ public class BINGPAI extends JButton
         double dLonKm = dLon * KM_PER_DEG * cosLat;
         double distKm = Math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm);
 
-        double speed = shuju.speed / 3600;
+        double speed = shuju.speed / 3600.0 * steps;
 
         if (speed <= 0.0 || distKm <= speed) {
             this.x = lon1 + dLon;
@@ -564,10 +604,10 @@ public class BINGPAI extends JButton
         double stepPx = Math.max(trailMinScreenPx, wPx * 0.5d);
 
         if (distPx >= stepPx) {
-            board.addTrailSegment(this,
-                    lastTrailLon, lastTrailLat,
-                    this.x, this.y,
-                    this.cardColor, wPx);
+            double sx1 = lastTrailLon, sy1 = lastTrailLat;
+            double sx2 = this.x, sy2 = this.y;
+            board.addTrailSegment(this, sx1, sy1, sx2, sy2, this.cardColor, wPx);
+            recordPathPoints(sx1, sy1, sx2, sy2);
             lastTrailLon = this.x;
             lastTrailLat = this.y;
         }
@@ -577,13 +617,17 @@ public class BINGPAI extends JButton
         if (!trailEnabled || !trailInitialized) return;
         if (lastTrailLon == this.x && lastTrailLat == this.y) return;
 
-        board.addTrailSegment(this,
-                lastTrailLon, lastTrailLat,
-                this.x, this.y,
+        double sx1 = lastTrailLon, sy1 = lastTrailLat;
+        double sx2 = this.x, sy2 = this.y;
+        board.addTrailSegment(this, sx1, sy1, sx2, sy2,
                 this.cardColor, computeTrailWidthPx());
+        recordPathPoints(sx1, sy1, sx2, sy2);
         lastTrailLon = this.x;
         lastTrailLat = this.y;
     }
+
+    private double lastSyncedDotLon = Double.NaN;
+    private double lastSyncedDotLat = Double.NaN;
 
     private void syncCurrentDot() {
         if (!showCurrentDot) return;
@@ -591,14 +635,23 @@ public class BINGPAI extends JButton
         if (myDot == null) {
             myDot = board.addGeoDotLive(this.x, this.y,
                     trailDotRadius, this.cardColor);
-        } else {
-            myDot.lon = this.x;
-            myDot.lat = this.y;
-            myDot.color = this.cardColor;
+            lastSyncedDotLon = this.x;
+            lastSyncedDotLat = this.y;
+            board.bumpLiveDotsVersion();
+            return;
         }
+
+        if (this.x == lastSyncedDotLon
+                && this.y == lastSyncedDotLat) return;
+
+        myDot.lon = this.x;
+        myDot.lat = this.y;
+        myDot.color = this.cardColor;
+        lastSyncedDotLon = this.x;
+        lastSyncedDotLat = this.y;
+        board.bumpLiveDotsVersion();
     }
 
-    /** 兵牌被删除时调用，清理资源。 */
     public void dispose() {
         if (myDot != null) {
             board.removeGeoDot(myDot);
@@ -607,42 +660,37 @@ public class BINGPAI extends JButton
         if (board != null) {
             board.removeOwnerTrails(this);
         }
-        // 静态共享线程池无需关闭，避免影响其他 BINGPAI 实例。
     }
 
-    public  void xianshi(){
-        BINGPAI b=this;
-        b= (BINGPAI) gongju.quchuquanbujiantingqi(b);
+    public void xianshi(){
+        BINGPAI b = this;
+        b = (BINGPAI) gongju.quchuquanbujiantingqi(b);
         b.bianhao = board.addAutoComponent(b, b);
         BINGPAI finalB2 = b;
         BINGPAI finalB = b;
         b.addActionListener(e -> {
             try {
-                Boolean succeed=true;
-
-                if(gongju.shiftdown())succeed=xuandingbianliang.add(finalB2);
+                Boolean succeed = true;
+                if (gongju.shiftdown()) succeed = xuandingbianliang.add(finalB2);
                 else {
                     xuandingbianliang.clearall();
-                    succeed=xuandingbianliang.add(finalB2);
+                    succeed = xuandingbianliang.add(finalB2);
                 }
-                if(succeed)EVENTMAIN.post(new beixuanze_DUOXUAN(finalB));
+                if (succeed) EVENTMAIN.post(new beixuanze_DUOXUAN(finalB));
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
             }
-
         });
     }
 
     /* ============================================================
-     *  ★ 当前 goto_MEIYIZHENZHIXING 所走路径上的所有坐标
+     *  ★ 路径坐标集合（仅记录，不参与攻击检测）
      * ============================================================ */
     public List<zuobiao> suozouzuobiao =
             Collections.synchronizedList(new ArrayList<>());
 
-    /** 去重用的键集合，线程安全。 */
     private final Set<Long> suozouzuobiaoKeys = ConcurrentHashMap.newKeySet();
 
-    /** 清空 suozouzuobiao 与其去重键集合。 */
     public void clearSuozouzuobiao() {
         synchronized (suozouzuobiao) {
             suozouzuobiao.clear();
@@ -650,134 +698,38 @@ public class BINGPAI extends JButton
         }
     }
 
-    /* ============================================================
-     *  ★ PaintBoard.TrailPixelSink 实现
-     * ============================================================ */
-    @Override
-    public void meichuzhixing(double jingdu, double weidu) {
+    /** 轨迹路径采样步长（度），约 2km。 */
+    private static final double TRAIL_SAMPLE_STEP_DEG = 0.02;
 
-        BatchData b = currentBatch;
+    private void addPathPoint(double lon, double lat) {
+        lon = ((lon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+        if (lat < -90.0) lat = -90.0;
+        else if (lat > 90.0) lat = 90.0;
 
-        b.pixels.add(new double[]{jingdu, weidu});
-        b.pending.incrementAndGet();
-
-        SHARED_WORKER_POOL.execute(() -> {
-            try {
-                doMeichuzhixing(jingdu, weidu);
-            } catch (Throwable ignored) {
-            } finally {
-                b.pending.decrementAndGet();
-            }
-        });
-    }
-
-    /**
-     * 真正的 meichuzhixing 业务逻辑，在多线程工作池中执行。
-     */
-    private void doMeichuzhixing(double jingdu, double weidu) {
-        long key = Double.doubleToLongBits(jingdu) * 31L
-                + Double.doubleToLongBits(weidu);
+        long key = Double.doubleToLongBits(lon) * 31L
+                + Double.doubleToLongBits(lat);
         if (suozouzuobiaoKeys.add(key)) {
             zuobiao z = new zuobiao(0, 0);
-            z.x = jingdu;
-            z.y = weidu;
+            z.x = lon; z.y = lat;
             suozouzuobiao.add(z);
         }
-
-        // TODO: 第一步：在这里添加你自己的业务逻辑
     }
 
-    /**
-     * 把一个批次的「结束处理」提交到 batchFinishPool。
-     */
-    private void scheduleBatchFinish(final BatchData b) {
-        SHARED_FINISH_POOL.execute(() -> {
-            while (b.pending.get() > 0) {
-                try {
-                    Thread.sleep(1);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return;
-                }
-            }
-
-            if (!dierbuEnabled) return;
-
-            List<double[]> snapshot;
-            synchronized (b.pixels) {
-                snapshot = new ArrayList<>(b.pixels);
-            }
-
-            for (double[] px : snapshot) {
-                try {
-                    meichuzhixing2(px[0], px[1]);
-                } catch (Throwable ignored) {
-                }
-            }
-        });
-    }
-
-    /* ============================================================
-     *  ★ 第二步回调
-     *
-     *  对每个像素，检查所有国家的所有兵牌：
-     *    - 若对方 suozouzuobiaoKeys 中包含当前像素坐标（O(1)），
-     *      则互相把对方加进自己的 gongjizhe（去重）。
-     *
-     *  性能要点：
-     *    1. 坐标 key 只计算一次；
-     *    2. 用 Set<Long> 做 O(1) 坐标匹配，取代遍历 suozouzuobiao；
-     *    3. 用 bingmoshuju.addGongjizhe 去重，避免重复添加；
-     *    4. 无 System.out 打屏。
-     * ============================================================ */
-    public void meichuzhixing2(double jingdu, double weidu) {
-
-        // 只计算一次坐标 key
-        long key = Double.doubleToLongBits(jingdu) * 31L
-                + Double.doubleToLongBits(weidu);
-
-        if (country == null || country.gongjizhe == null) return;
-
-        for (country c : country.gongjizhe) {
-            if (c == null || c.jundui == null) continue;
-
-            for (int i = 0, n = c.jundui.size(); i < n; i++) {
-                BINGPAI bingpai = c.jundui.get(i);
-                if (bingpai == null || bingpai == this) continue;
-                if (bingpai.shuju == null) continue;
-
-                // O(1) 坐标匹配：对方是否走过当前像素对应的坐标
-                if (!bingpai.suozouzuobiaoKeys.contains(key)) continue;
-
-                // 双向添加攻击者，去重
-                if (bingpai.shuju.gongjizhe.contains(this)
-                        && this.shuju != null
-                        && this.shuju.gongjizhe.contains(bingpai)) {
-                    // 已互相标记，跳过
-                    continue;
-                }
-
-                bingpai.shuju.addGongjizhe(this);
-                if (this.shuju != null) {
-                    this.shuju.addGongjizhe(bingpai);
-                }
-            }
+    private void recordPathPoints(double lon1, double lat1,
+                                  double lon2, double lat2) {
+        double dLon = lon2 - lon1;
+        dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+        double dLat = lat2 - lat1;
+        double distDeg = Math.sqrt(dLon * dLon + dLat * dLat);
+        if (distDeg < 1e-9) {
+            addPathPoint(lon1, lat1);
+            return;
         }
-    }
-
-    /* ============================================================
-     *  ★ 第二步开关控制
-     * ============================================================ */
-
-    public void kaiqidierbu() {
-        this.dierbuEnabled = true;
-    }
-
-    public void guanbidierbu() {
-        this.dierbuEnabled = false;
-    }
-
-    public boolean isDierbuEnabled() {
-        return dierbuEnabled;
+        int steps = Math.max(1, (int) Math.ceil(distDeg / TRAIL_SAMPLE_STEP_DEG));
+        if (steps > 512) steps = 512;
+        for (int i = 0; i <= steps; i++) {
+            double t = (double) i / steps;
+            addPathPoint(lon1 + t * dLon, lat1 + t * dLat);
+        }
     }
 }

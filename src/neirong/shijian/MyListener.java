@@ -64,7 +64,7 @@ public class MyListener {
                     // 这里做耗时的处理，每个元素独立
 
                     for(int a1=0;a1!=delta.getSeconds();a1++) {
-                        binpai.goto_MEIYIZHENZHIXING();
+                        binpai.tick();
                     }
 
                     return null;
@@ -86,6 +86,7 @@ public class MyListener {
 
         // 5. 关闭线程池
         executor.shutdown();
+
 
         g+=delta.getSeconds();
         countries.get(0).shoudu.name= String.valueOf(g);

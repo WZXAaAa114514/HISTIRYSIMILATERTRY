@@ -1,4 +1,5 @@
 
+import neirong.bianliang.bingpai.BINGPAI;
 import neirong.bianliang.xuanding.shubiaojianting;
 import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
@@ -27,7 +28,12 @@ public class Main {
         EVENTMAIN=new EventBus();
         EVENTMAIN.register(new MyListener());
         board.setTrailAntialias(false);
+        javax.swing.Timer timer = new javax.swing.Timer(33, e -> {
+            // 统一 tick 所有 BINGPAI，每个只 tick 一次
 
+            board.repaint();
+        });
+        timer.start();
         System.setProperty("sun.java2d.d3d", "True");
         System.setProperty("sun.java2d.noddraw", "True");
         first_daoruguojia.daoruguojia();
