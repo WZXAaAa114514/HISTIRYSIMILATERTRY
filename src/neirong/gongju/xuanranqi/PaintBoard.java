@@ -22,77 +22,77 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class PaintBoard extends JPanel {
 
-    private static final String UI_FONT = pickUIFont();
-    private static String pickUIFont() {
+    private static final String ziti = zidongxuanziti();
+    private static String zidongxuanziti() {
         String[] prefer = {"Microsoft YaHei","微软雅黑","PingFang SC","Hiragino Sans GB","Noto Sans CJK SC","Source Han Sans SC","WenQuanYi Micro Hei","SimHei","SimSun"};
         Set<String> avail = new HashSet<>(Arrays.asList(GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
         for (String n : prefer) if (avail.contains(n)) return n;
         return Font.SANS_SERIF;
     }
 
-    private static final Font[] FONT_CACHE = new Font[256];
-    private static Font uiFont(int size) {
+    private static final Font[] zitihuancun = new Font[256];
+    private static Font huoqusizedaxiaodeziti(int size) {
         if (size < 1) size = 1;
-        if (size > 255) return new Font(UI_FONT, Font.PLAIN, size);
-        Font f = FONT_CACHE[size];
-        return f != null ? f : (FONT_CACHE[size] = new Font(UI_FONT, Font.PLAIN, size));
+        if (size > 255) return new Font(ziti, Font.PLAIN, size);
+        Font f = zitihuancun[size];
+        return f != null ? f : (zitihuancun[size] = new Font(ziti, Font.PLAIN, size));
     }
 
     private static final Map<Float, BasicStroke> STROKE_CACHE = new ConcurrentHashMap<>(8);
     private static BasicStroke strokeOf(float w) { return STROKE_CACHE.computeIfAbsent(w, BasicStroke::new); }
-    private static final BasicStroke STROKE_1F = new BasicStroke(1f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+    private static final BasicStroke huabi = new BasicStroke(1f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
-    private float buttonMinScale = 2f, buttonMaxScale = 5f, textMinScale = 2f, textMaxScale = 5f;
-    public float getButtonMinScale() { return buttonMinScale; }
-    public void setButtonMinScale(float v) { buttonMinScale = Math.max(0.01f, v); if (buttonMaxScale < buttonMinScale) buttonMaxScale = buttonMinScale; }
-    public float getButtonMaxScale() { return buttonMaxScale; }
-    public void setButtonMaxScale(float v) { buttonMaxScale = Math.max(buttonMinScale, v); }
-    public float getTextMinScale() { return textMinScale; }
-    public void setTextMinScale(float v) { textMinScale = Math.max(0.01f, v); if (textMaxScale < textMinScale) textMaxScale = textMinScale; }
-    public float getTextMaxScale() { return textMaxScale; }
-    public void setTextMaxScale(float v) { textMaxScale = Math.max(textMinScale, v); }
-    public void setScaleLimits(float bMin, float bMax, float tMin, float tMax) { setButtonMinScale(bMin); setButtonMaxScale(bMax); setTextMinScale(tMin); setTextMaxScale(tMax); }
-    public void applyScaleLimitsToAll() {
+    private float liveanniuzujianzuixiaozhi = 2f, liveanniuzujianzuidazhi = 5f, livedilizujianzuixiaozhi = 2f, livedilizujianzuidazhi = 5f;
+    public float getLiveanniuzujianzuixiaozhi() { return liveanniuzujianzuixiaozhi; }
+    public void setLiveanniuzujianzuixiaozhi(float v) { liveanniuzujianzuixiaozhi = Math.max(0.01f, v); if (liveanniuzujianzuidazhi < liveanniuzujianzuixiaozhi) liveanniuzujianzuidazhi = liveanniuzujianzuixiaozhi; }
+    public float getLiveanniuzujianzuidazhi() { return liveanniuzujianzuidazhi; }
+    public void setLiveanniuzujianzuidazhi(float v) { liveanniuzujianzuidazhi = Math.max(liveanniuzujianzuixiaozhi, v); }
+    public float getLivedilizujianzuixiaozhi() { return livedilizujianzuixiaozhi; }
+    public void setLivedilizujianzuixiaozhi(float v) { livedilizujianzuixiaozhi = Math.max(0.01f, v); if (livedilizujianzuidazhi < livedilizujianzuixiaozhi) livedilizujianzuidazhi = livedilizujianzuixiaozhi; }
+    public float getLivedilizujianzuidazhi() { return livedilizujianzuidazhi; }
+    public void setLivedilizujianzuidazhi(float v) { livedilizujianzuidazhi = Math.max(livedilizujianzuixiaozhi, v); }
+    public void shezhiliveanniuwenbenzuidazuixiaozhi(float bMin, float bMax, float tMin, float tMax) { setLiveanniuzujianzuixiaozhi(bMin); setLiveanniuzujianzuidazhi(bMax); setLivedilizujianzuixiaozhi(tMin); setLivedilizujianzuidazhi(tMax); }
+    public void yingyangsuofangdaoquanbulivezujian() {
         runOnEDT(() -> {
-            for (int i = 0, n = geoComponents.size(); i < n; i++) { GeoComponent g = geoComponents.get(i); g.minScale = buttonMinScale; g.maxScale = buttonMaxScale; }
-            for (int i = 0, n = geoTexts.size(); i < n; i++) { GeoText t = geoTexts.get(i); t.minScale = textMinScale; t.maxScale = textMaxScale; }
+            for (int i = 0, n = geoComponents.size(); i < n; i++) { GeoComponent g = geoComponents.get(i); g.minScale = liveanniuzujianzuixiaozhi; g.maxScale = liveanniuzujianzuidazhi; }
+            for (int i = 0, n = wuliwenbens.size(); i < n; i++) { wuliwenben t = wuliwenbens.get(i); t.minScale = livedilizujianzuixiaozhi; t.maxScale = livedilizujianzuidazhi; }
             layoutGeoComponents();
         });
     }
 
-    public interface Source {
+    public interface zidonggengxinhuitiao {
         double getLon(); double getLat();
         default Color getColor() { return null; } default String getText() { return null; }
         default Double getRadius() { return null; } default Float getFontSize() { return null; }
         default Boolean getVisible() { return null; }
     }
-    private static final float MIN_SCREEN_FONT_SIZE = 8f, MAX_SCREEN_FONT_SIZE = 200f;
-    private double minLiveDotRadiusPx = 0.6;
-    public void setMinLiveDotRadiusPx(double r) { this.minLiveDotRadiusPx = Math.max(0, r); }
-    public double getMinLiveDotRadiusPx() { return minLiveDotRadiusPx; }
+    private static final float zuixiaopingmuziti = 8f, zuidapingmuziti = 200f;
+    private double livedianzuixiaobanjing = 0.6;
+    public void setLivedianzuixiaobanjing(double r) { this.livedianzuixiaobanjing = Math.max(0, r); }
+    public double getLivedianzuixiaobanjing() { return livedianzuixiaobanjing; }
 
-    private static final int WORLD_BASE_PPD = 8, WORLD_LEVELS = 5, TRAIL_BASE_PPD = 4, TRAIL_LEVELS = 4;
-    private static final int WORLD_W_HIGH = 360 * WORLD_BASE_PPD, WORLD_H_HIGH = 180 * WORLD_BASE_PPD;
-    private MappedPyramid worldPyramid;
-    private File pyramidDir;
-    private BufferedImage highBakeBuffer;
-    private BufferedImage ensureHighBakeBuffer() { if (highBakeBuffer == null) highBakeBuffer = new BufferedImage(WORLD_W_HIGH, WORLD_H_HIGH, BufferedImage.TYPE_INT_ARGB_PRE); return highBakeBuffer; }
+    private static final int jichuxiangsushu = 8, ditutingzuta = 5, jingzitaxiangsushu = 4, guijijingzitashu = 4;
+    private static final int gaofenbianlvhuancunkuan = 360 * jichuxiangsushu, gaofenbianlvhuancungao = 180 * jichuxiangsushu;
+    private MappedPyramid ditujingzita;
+    private File lingshijingzitamulu;
+    private BufferedImage huancungaofenbianlv;
+    private BufferedImage ensureHighBakeBuffer() { if (huancungaofenbianlv == null) huancungaofenbianlv = new BufferedImage(gaofenbianlvhuancunkuan, gaofenbianlvhuancungao, BufferedImage.TYPE_INT_ARGB_PRE); return huancungaofenbianlv; }
     private static final Object GLOBAL_TRAIL_OWNER = new Object();
 
-    private static final class TrailSeg {
+    private static final class guijixianduanmoxing {
         final double lon1, lat1, lon2, lat2; final Color color; final float screenWidthPx;
-        TrailSeg(double lon1, double lat1, double lon2, double lat2, Color color, float screenWidthPx) {
+        guijixianduanmoxing(double lon1, double lat1, double lon2, double lat2, Color color, float screenWidthPx) {
             this.lon1 = lon1; this.lat1 = lat1; this.lon2 = lon2; this.lat2 = lat2; this.color = color; this.screenWidthPx = screenWidthPx;
         }
     }
     private static final class OwnerTrail {
         final Object owner; final MappedPyramid pyramid; volatile boolean hasAny = false;
-        final List<TrailSeg> pending = new ArrayList<>(); volatile boolean flushScheduled = false;
+        final List<guijixianduanmoxing> pending = new ArrayList<>(); volatile boolean flushScheduled = false;
         OwnerTrail(Object owner, MappedPyramid pyramid) { this.owner = owner; this.pyramid = pyramid; }
     }
     private final Map<Object, OwnerTrail> ownerTrails = new ConcurrentHashMap<>();
 
-    public interface TrailPixelSink {
+    public interface guijihuitiao {
         void meichuzhixing(double jingdu, double weidu);
         default void meichuzhixingBatch(double[] buf, int pairCount) { for (int i = 0; i < pairCount; i++) meichuzhixing(buf[i * 2], buf[i * 2 + 1]); }
     }
@@ -100,18 +100,18 @@ public class PaintBoard extends JPanel {
     private volatile boolean worldDirty = true, hasAnyTrails = false;
     private boolean bakingMode = false;
     private int batchDepth = 0;
-    private volatile boolean bakeStaticDots = true;
-    public boolean isBakeStaticDots() { return bakeStaticDots; }
-    public void setBakeStaticDots(boolean on) { if (this.bakeStaticDots == on) return; this.bakeStaticDots = on; if (on) markWorldDirty(); }
-    private volatile boolean trailEnabled = true;
-    public boolean isTrailEnabled() { return trailEnabled; }
-    public void setTrailEnabled(boolean on) { this.trailEnabled = on; }
-    private boolean trailAntialias = true;
-    public boolean isTrailAntialias() { return trailAntialias; }
-    public void setTrailAntialias(boolean on) { this.trailAntialias = on; }
-    private boolean trailForceOpaque = true;
-    public boolean isTrailForceOpaque() { return trailForceOpaque; }
-    public void setTrailForceOpaque(boolean on) { this.trailForceOpaque = on; }
+    private volatile boolean shifouhongpeidiandaotitu = true;
+    public boolean isShifouhongpeidiandaotitu() { return shifouhongpeidiandaotitu; }
+    public void setShifouhongpeidiandaotitu(boolean on) { if (this.shifouhongpeidiandaotitu == on) return; this.shifouhongpeidiandaotitu = on; if (on) markWorldDirty(); }
+    private volatile boolean guijishifouqiyong = true;
+    public boolean isGuijishifouqiyong() { return guijishifouqiyong; }
+    public void setGuijishifouqiyong(boolean on) { this.guijishifouqiyong = on; }
+    private boolean guijishifoukangjuchi = true;
+    public boolean isGuijishifoukangjuchi() { return guijishifoukangjuchi; }
+    public void setGuijishifoukangjuchi(boolean on) { this.guijishifoukangjuchi = on; }
+    private boolean guijishifouqiangzhibutouming = true;
+    public boolean isGuijishifouqiangzhibutouming() { return guijishifouqiangzhibutouming; }
+    public void setGuijishifouqiangzhibutouming(boolean on) { this.guijishifouqiangzhibutouming = on; }
     private static final AtomicInteger TRAIL_DIR_SEQ = new AtomicInteger(0);
 
     private OwnerTrail ensureOwnerTrail(Object owner) {
@@ -121,20 +121,20 @@ public class PaintBoard extends JPanel {
         synchronized (ownerTrails) {
             ot = ownerTrails.get(owner); if (ot != null) return ot;
             try {
-                File dir = new File(pyramidDir, "trail_shared");
-                ot = new OwnerTrail(owner, new MappedPyramid(dir, TRAIL_BASE_PPD, TRAIL_LEVELS));
+                File dir = new File(lingshijingzitamulu, "trail_shared");
+                ot = new OwnerTrail(owner, new MappedPyramid(dir, jingzitaxiangsushu, guijijingzitashu));
                 ownerTrails.put(owner, ot);
             } catch (IOException e) { throw new RuntimeException("无法创建轨迹金字塔", e); }
         }
         return ot;
     }
-    public void clearTrails() {
+    public void qingkongquanbuguiji() {
         runOnEDT(() -> {
             for (OwnerTrail ot : ownerTrails.values()) { synchronized (ot.pending) { ot.pending.clear(); } ot.pyramid.clear(); ot.hasAny = false; }
             hasAnyTrails = false;
         });
     }
-    public void clearTrails(Object owner) {
+    public void qingkongquanbuguiji(Object owner) {
         final Object fOwner = (owner != null) ? owner : GLOBAL_TRAIL_OWNER;
         runOnEDT(() -> {
             OwnerTrail ot = ownerTrails.get(fOwner); if (ot == null) return;
@@ -147,20 +147,20 @@ public class PaintBoard extends JPanel {
     public void removeOwnerTrails(Object owner) { /* 共享金字塔，不删 */ }
     public void addTrailSegment(double lon1, double lat1, double lon2, double lat2, Color color, float screenWidthPx) { addTrailSegment(GLOBAL_TRAIL_OWNER, lon1, lat1, lon2, lat2, color, screenWidthPx); }
     public void addTrailSegment(Object owner, double lon1, double lat1, double lon2, double lat2, Color color, float screenWidthPx) {
-        if (!trailEnabled) return;
+        if (!guijishifouqiyong) return;
         if (color == null) color = Color.WHITE;
         if (screenWidthPx <= 0f) screenWidthPx = 1f;
         final Object fOwner = GLOBAL_TRAIL_OWNER;
         final OwnerTrail ot = ensureOwnerTrail(fOwner);
         Color baseColor = color;
-        if (trailForceOpaque && color.getAlpha() != 255) baseColor = new Color(color.getRGB() | 0xFF000000, true);
-        TrailSeg seg = new TrailSeg(lon1, lat1, lon2, lat2, baseColor, screenWidthPx);
+        if (guijishifouqiangzhibutouming && color.getAlpha() != 255) baseColor = new Color(color.getRGB() | 0xFF000000, true);
+        guijixianduanmoxing seg = new guijixianduanmoxing(lon1, lat1, lon2, lat2, baseColor, screenWidthPx);
         boolean needSchedule;
         synchronized (ot.pending) { ot.pending.add(seg); needSchedule = !ot.flushScheduled; if (needSchedule) ot.flushScheduled = true; }
         if (needSchedule) SwingUtilities.invokeLater(() -> flushTrailPending(ot));
     }
     private void flushTrailPending(OwnerTrail ot) {
-        List<TrailSeg> batch;
+        List<guijixianduanmoxing> batch;
         synchronized (ot.pending) {
             if (ot.pending.isEmpty()) { ot.flushScheduled = false; return; }
             batch = new ArrayList<>(ot.pending); ot.pending.clear(); ot.flushScheduled = false;
@@ -168,7 +168,7 @@ public class PaintBoard extends JPanel {
         double p = ppd; if (!(p > 0)) p = 1;
         boolean touched = false;
         for (int si = 0; si < batch.size(); si++) {
-            TrailSeg seg = batch.get(si);
+            guijixianduanmoxing seg = batch.get(si);
             double nLon1 = normalizeLon(seg.lon1), dLon = seg.lon2 - seg.lon1;
             dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
             double nLon2 = nLon1 + dLon;
@@ -185,7 +185,7 @@ public class PaintBoard extends JPanel {
                 BufferedImage tile = img.readRegion(bx1, by1, rw, rh); if (tile == null) continue;
                 Graphics2D g = tile.createGraphics();
                 try {
-                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, trailAntialias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, guijishifoukangjuchi ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
                     g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
                     g.setColor(seg.color);
                     g.setStroke(new BasicStroke(bw, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
@@ -198,40 +198,40 @@ public class PaintBoard extends JPanel {
     }
     public void addTrailDot(double lon, double lat, double radiusDeg, Color color) { addTrailDot(GLOBAL_TRAIL_OWNER, lon, lat, radiusDeg, color); }
     public void addTrailDot(Object owner, double lon, double lat, double radiusDeg, Color color) {
-        if (!trailEnabled) return;
+        if (!guijishifouqiyong) return;
         if (color == null) color = Color.WHITE;
         double p = ppd; if (!(p > 0)) p = 1;
         addTrailSegment(owner, lon, lat, lon, lat, color, (float) Math.max(1.0, 2.0 * radiusDeg * p));
     }
 
-    private static final Color GRID_COLOR_PRIME = new Color(255, 200, 100, 220), GRID_COLOR_NORMAL = new Color(70, 70, 70, 160),
+    private static final Color jingxianyanse = new Color(255, 200, 100, 220), weixianyanse = new Color(70, 70, 70, 160),
             HUD_COLOR_MAIN = new Color(255, 255, 255, 200), HUD_COLOR_TIP = new Color(180, 180, 180, 200),
             HUD_COLOR_MOUSE = new Color(120, 220, 255, 230), HUD_COLOR_NOMSE = new Color(140, 140, 140, 200);
-    private static final Font HUD_FONT = new Font(UI_FONT, Font.PLAIN, 13);
+    private static final Font HUD_FONT = new Font(ziti, Font.PLAIN, 13);
 
-    private Point selectionStart = null, selectionEnd = null;
-    private volatile boolean selectionActive = false;
-    private Color selectionFillColor = new Color(0, 120, 215, 60), selectionBorderColor = new Color(0, 120, 215, 220);
-    public boolean isSelectionActive() { return selectionActive; }
-    public void setSelectionColors(Color fill, Color border) { if (fill != null) selectionFillColor = fill; if (border != null) selectionBorderColor = border; }
-    public void beginSelection(int x, int y) { selectionStart = new Point(x, y); selectionEnd = new Point(x, y); selectionActive = true; }
-    public void updateSelection(int x, int y) { if (!selectionActive) return; selectionEnd = new Point(x, y); }
-    public Rectangle endSelection() { if (!selectionActive) return null; Rectangle r = getSelectionRect(); selectionActive = false; selectionStart = null; selectionEnd = null; return r; }
-    public void cancelSelection() { if (!selectionActive) return; selectionActive = false; selectionStart = null; selectionEnd = null; }
+    private Point kuangxuanqidian = null, kuangxuanzhongdian = null;
+    private volatile boolean shifouzhengzaikuangxuan = false;
+    private Color kuangxuantianchangse = new Color(0, 120, 215, 60), kuangxuanbiankuangse = new Color(0, 120, 215, 220);
+    public boolean isShifouzhengzaikuangxuan() { return shifouzhengzaikuangxuan; }
+    public void setSelectionColors(Color fill, Color border) { if (fill != null) kuangxuantianchangse = fill; if (border != null) kuangxuanbiankuangse = border; }
+    public void kaishikuangxuan(int x, int y) { kuangxuanqidian = new Point(x, y); kuangxuanzhongdian = new Point(x, y); shifouzhengzaikuangxuan = true; }
+    public void gengxinkuangxuan(int x, int y) { if (!shifouzhengzaikuangxuan) return; kuangxuanzhongdian = new Point(x, y); }
+    public Rectangle jieshukuangxuan() { if (!shifouzhengzaikuangxuan) return null; Rectangle r = getSelectionRect(); shifouzhengzaikuangxuan = false; kuangxuanqidian = null; kuangxuanzhongdian = null; return r; }
+    public void quxiaokuangxuan() { if (!shifouzhengzaikuangxuan) return; shifouzhengzaikuangxuan = false; kuangxuanqidian = null; kuangxuanzhongdian = null; }
     public Rectangle getSelectionRect() {
-        if (!selectionActive || selectionStart == null || selectionEnd == null) return null;
-        int x1 = Math.min(selectionStart.x, selectionEnd.x), y1 = Math.min(selectionStart.y, selectionEnd.y);
-        int x2 = Math.max(selectionStart.x, selectionEnd.x), y2 = Math.max(selectionStart.y, selectionEnd.y);
+        if (!shifouzhengzaikuangxuan || kuangxuanqidian == null || kuangxuanzhongdian == null) return null;
+        int x1 = Math.min(kuangxuanqidian.x, kuangxuanzhongdian.x), y1 = Math.min(kuangxuanqidian.y, kuangxuanzhongdian.y);
+        int x2 = Math.max(kuangxuanqidian.x, kuangxuanzhongdian.x), y2 = Math.max(kuangxuanqidian.y, kuangxuanzhongdian.y);
         if (x2 - x1 <= 0 && y2 - y1 <= 0) return null;
         return new Rectangle(x1, y1, x2 - x1, y2 - y1);
     }
-    public static final class MouseSnapshot {
+    public static final class shubiaojingweidu {
         public final double lon, lat;
-        MouseSnapshot(double lon, double lat) { this.lon = lon; this.lat = lat; }
+        shubiaojingweidu(double lon, double lat) { this.lon = lon; this.lat = lat; }
     }
-    public MouseSnapshot mouseSnap = null;
-    private static final double WORLD_LAT_MIN = -90, WORLD_LAT_MAX = 90;
-    private double lonCenter = 0, latCenter = 0, ppd = 6, minPpd = 6, maxPpd = 400;
+    public shubiaojingweidu dangqianshubiaojingweidu = null;
+    private static final double shijieweidufanwei_MIN = -90, shijieweidufanwei_MAX = 90;
+    private double shituzhongxinjingdu = 0, shituzhongxinweidu = 0, ppd = 6, minPpd = 6, maxPpd = 400;
     private Double lonBoundMin = null, lonBoundMax = null, latBoundMin = null, latBoundMax = null;
     private static final double GRID_STEP = 15;
     private int virtualButtonHalfHeight = 15;
@@ -244,8 +244,8 @@ public class PaintBoard extends JPanel {
     public void setBrushSize(int s) { this.brushSize = s; }
     public int getBrushSize() { return brushSize; }
 
-    private interface GeoShape { void paint(Graphics2D g2, PaintBoard b); }
-    private final List<GeoShape> shapes = new ArrayList<>();
+    private interface dilihuizhijiekou { void paint(Graphics2D g2, PaintBoard b); }
+    private final List<dilihuizhijiekou> minglingliebiao = new ArrayList<>();
     private static class Marker {
         double lon, lat; Color color; int size; String text;
         Marker(double lon, double lat, Color c, int s, String t) { this.lon = lon; this.lat = lat; color = c; size = s; text = t; }
@@ -256,14 +256,14 @@ public class PaintBoard extends JPanel {
         public Color color, borderColor, textColor;
         public String text; public boolean textScale; public float borderWidth;
         public boolean visible = true; public boolean screenSpace = false;
-        public Source source = null; public transient double cachedSx, cachedSy;
+        public zidonggengxinhuitiao zidonggengxinhuitiao = null; public transient double cachedSx, cachedSy;
         public dian(double lon, double lat, double radiusDeg, Color color, Color borderColor, Color textColor, String text, boolean textScale, float borderWidth) {
             this.lon = lon; this.lat = lat; this.radiusDeg = radiusDeg;
             this.color = color; this.borderColor = borderColor; this.textColor = textColor;
             this.text = text; this.textScale = textScale; this.borderWidth = borderWidth;
         }
     }
-    private final List<dian> geoDots = new ArrayList<>(), liveDots = new ArrayList<>(), visibleLiveDots = new ArrayList<>();
+    private final List<dian> feiwulidianji = new ArrayList<>(), livedianji = new ArrayList<>(), shitulivedianji = new ArrayList<>();
     private double cachedVpLonCenter = Double.NaN, cachedVpLatCenter = Double.NaN, cachedVpPpd = Double.NaN;
     private int cachedVpW = -1, cachedVpH = -1;
 
@@ -295,8 +295,8 @@ public class PaintBoard extends JPanel {
 
     private void rebuildLiveDotBuckets() {
         for (int i = 0; i < LON_BUCKET_COUNT; i++) liveDotBuckets[i] = null;
-        for (int i = 0, n = liveDots.size(); i < n; i++) {
-            dian d = liveDots.get(i);
+        for (int i = 0, n = livedianji.size(); i < n; i++) {
+            dian d = livedianji.get(i);
             int idx = lonBucketIndex(d.lon);
             List<dian> b = liveDotBuckets[idx];
             if (b == null) { b = new ArrayList<>(); liveDotBuckets[idx] = b; }
@@ -322,8 +322,8 @@ public class PaintBoard extends JPanel {
     private void buildClusterRepresentatives() {
         clusterMap.clear();
         clusterRepresentatives.clear();
-        for (int i = 0, n = visibleLiveDots.size(); i < n; i++) {
-            dian d = visibleLiveDots.get(i);
+        for (int i = 0, n = shitulivedianji.size(); i < n; i++) {
+            dian d = shitulivedianji.get(i);
             int cx = (int) (d.cachedSx / CLUSTER_CELL_PX);
             int cy = (int) (d.cachedSy / CLUSTER_CELL_PX);
             long k = clusterKey(cx, cy);
@@ -334,22 +334,22 @@ public class PaintBoard extends JPanel {
         }
     }
 
-    public static class LiveLine {
+    public static class livexian {
         public int bianhao; public double lon1, lat1, lon2, lat2;
         public Color color; public float strokeWidth; public boolean visible = true; public Object tag = null;
-        LiveLine(int bianhao, double lon1, double lat1, double lon2, double lat2, Color color, float strokeWidth) {
+        livexian(int bianhao, double lon1, double lat1, double lon2, double lat2, Color color, float strokeWidth) {
             this.bianhao = bianhao; this.lon1 = lon1; this.lat1 = lat1; this.lon2 = lon2; this.lat2 = lat2;
             this.color = color; this.strokeWidth = strokeWidth;
         }
     }
-    private final List<LiveLine> liveLines = new ArrayList<>();
+    private final List<livexian> livexians = new ArrayList<>();
     private final AtomicInteger nextLiveLineBianhao = new AtomicInteger(1);
 
     private static final class GeoComponent {
         final int bianhao; final JComponent comp; double lon, lat;
         final int anchorX, anchorY; int baseW, baseH; final double basePpd; final Font baseFont;
         boolean scaleWithZoom; float currentFontSize = -1f;
-        Source source = null; boolean visibleBySource = true;
+        zidonggengxinhuitiao zidonggengxinhuitiao = null; boolean visibleBySource = true;
         float minScale = 0.4f, maxScale = 2.5f;
         GeoComponent(int bianhao, JComponent comp, double lon, double lat, int ax, int ay, int baseW, int baseH, double basePpd, Font baseFont, boolean scaleWithZoom) {
             this.bianhao = bianhao; this.comp = comp; this.lon = lon; this.lat = lat;
@@ -375,45 +375,45 @@ public class PaintBoard extends JPanel {
         });
     }
 
-    public static class GeoText {
+    public static class wuliwenben {
         public int bianhao = 0; public double lon, lat; public String text; public Color color;
         public float baseFontSize; public boolean scaleWithZoom; public double offsetX = 0, offsetY = 0;
         final double basePpd; public JComponent attachedTo = null; public Color outlineColor = null;
-        public float outlineWidth = 2f; public int fontStyle = Font.BOLD; public Source source = null;
+        public float outlineWidth = 2f; public int fontStyle = Font.BOLD; public zidonggengxinhuitiao zidonggengxinhuitiao = null;
         public boolean visible = true; public float minScale = 0.4f, maxScale = 2.5f;
         transient Font cachedFont = null; transient float cachedFontSize = -1f;
         transient int cachedFontStyle = -1; transient FontMetrics cachedFm = null; transient Font cachedFmFont = null;
-        GeoText(double lon, double lat, String text, float fontSize, Color color, boolean scaleWithZoom, double basePpd, int bianhao) {
+        wuliwenben(double lon, double lat, String text, float fontSize, Color color, boolean scaleWithZoom, double basePpd, int bianhao) {
             this.lon = lon; this.lat = lat; this.text = text; this.baseFontSize = fontSize;
             this.color = color; this.scaleWithZoom = scaleWithZoom; this.basePpd = basePpd; this.bianhao = bianhao;
         }
         Font fontFor(float size) {
             if (cachedFont == null || Math.abs(cachedFontSize - size) > 0.01f || cachedFontStyle != fontStyle) {
-                cachedFont = new Font(UI_FONT, fontStyle, 12).deriveFont(size); cachedFontSize = size; cachedFontStyle = fontStyle;
+                cachedFont = new Font(ziti, fontStyle, 12).deriveFont(size); cachedFontSize = size; cachedFontStyle = fontStyle;
             }
             return cachedFont;
         }
     }
-    private final List<GeoText> geoTexts = new ArrayList<>();
+    private final List<wuliwenben> wuliwenbens = new ArrayList<>();
     private final AtomicInteger nextAnniuBianhao = new AtomicInteger(1), nextWenbenBianhao = new AtomicInteger(1);
     private GeoComponent findAnniu(int bianhao) {
         if (bianhao <= 0) return null;
         for (int i = 0, n = geoComponents.size(); i < n; i++) if (geoComponents.get(i).bianhao == bianhao) return geoComponents.get(i);
         return null;
     }
-    private GeoText findWenben(int bianhao) {
+    private wuliwenben findWenben(int bianhao) {
         if (bianhao <= 0) return null;
-        for (int i = 0, n = geoTexts.size(); i < n; i++) if (geoTexts.get(i).bianhao == bianhao) return geoTexts.get(i);
+        for (int i = 0, n = wuliwenbens.size(); i < n; i++) if (wuliwenbens.get(i).bianhao == bianhao) return wuliwenbens.get(i);
         return null;
     }
 
     private Point dragStart; private double startLon, startLat; private boolean dragging;
     private final AtomicInteger frameCounter = new AtomicInteger(0), currentFps = new AtomicInteger(0);
-    private final ScheduledExecutorService fpsMonitor = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r, "fps-monitor"); t.setDaemon(true); t.setPriority(Thread.MIN_PRIORITY); return t; });
+    private final ScheduledExecutorService FPSjianting = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r, "fps-monitor"); t.setDaemon(true); t.setPriority(Thread.MIN_PRIORITY); return t; });
     private void tickFrame() { frameCounter.incrementAndGet(); }
     public int getFps() { return currentFps.get(); }
     public int sampleFpsNow() { int v = frameCounter.getAndSet(0); currentFps.set(v); return v; }
-    public double[] shibiaojingweidu() { MouseSnapshot s = mouseSnap; if (s == null) return null; return new double[]{ s.lon, s.lat }; }
+    public double[] shibiaojingweidu() { shubiaojingweidu s = dangqianshubiaojingweidu; if (s == null) return null; return new double[]{ s.lon, s.lat }; }
 
     private final Map<Color, Path2D.Double> batchPathCache = new HashMap<>();
     private final List<dian> individualDotCache = new ArrayList<>();
@@ -437,29 +437,29 @@ public class PaintBoard extends JPanel {
             }
         }
 
-        pyramidDir = new File(System.getProperty("java.io.tmpdir"), "paintboard_" + Integer.toHexString(System.identityHashCode(this)) + "_" + System.currentTimeMillis());
+        lingshijingzitamulu = new File(System.getProperty("java.io.tmpdir"), "paintboard_" + Integer.toHexString(System.identityHashCode(this)) + "_" + System.currentTimeMillis());
         try {
-            worldPyramid = new MappedPyramid(new File(pyramidDir, "world"), WORLD_BASE_PPD, WORLD_LEVELS);
-            ownerTrails.put(GLOBAL_TRAIL_OWNER, new OwnerTrail(GLOBAL_TRAIL_OWNER, new MappedPyramid(new File(pyramidDir, "trail"), TRAIL_BASE_PPD, TRAIL_LEVELS)));
+            ditujingzita = new MappedPyramid(new File(lingshijingzitamulu, "world"), jichuxiangsushu, ditutingzuta);
+            ownerTrails.put(GLOBAL_TRAIL_OWNER, new OwnerTrail(GLOBAL_TRAIL_OWNER, new MappedPyramid(new File(lingshijingzitamulu, "trail"), jingzitaxiangsushu, guijijingzitashu)));
         } catch (IOException e) { throw new RuntimeException("无法创建磁盘金字塔", e); }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            try { worldPyramid.close(); } catch (Exception ignored) {}
+            try { ditujingzita.close(); } catch (Exception ignored) {}
             for (OwnerTrail ot : ownerTrails.values()) { try { ot.pyramid.close(); } catch (Exception ignored) {} }
             try { Thread.sleep(200); } catch (InterruptedException ignored) {}
             System.gc();
-            deleteRecursively(pyramidDir);
+            deleteRecursively(lingshijingzitamulu);
         }));
         setBackground(Color.BLACK); setPreferredSize(new Dimension(900, 600));
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) {
                 if (!SwingUtilities.isLeftMouseButton(e)) return;
-                dragStart = e.getPoint(); startLon = lonCenter; startLat = latCenter; dragging = true;
+                dragStart = e.getPoint(); startLon = shituzhongxinjingdu; startLat = shituzhongxinweidu; dragging = true;
                 setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR)); updateMouse(e);
             }
             @Override public void mouseDragged(MouseEvent e) {
                 if (dragging && dragStart != null) {
-                    lonCenter = startLon - (e.getX() - dragStart.x) / ppd;
-                    latCenter = startLat + (e.getY() - dragStart.y) / ppd;
+                    shituzhongxinjingdu = startLon - (e.getX() - dragStart.x) / ppd;
+                    shituzhongxinweidu = startLat + (e.getY() - dragStart.y) / ppd;
                     clampView();
                 }
                 updateMouse(e);
@@ -470,7 +470,7 @@ public class PaintBoard extends JPanel {
                 dragging = false; dragStart = null; setCursor(Cursor.getDefaultCursor()); updateMouse(e);
             }
             @Override public void mouseMoved(MouseEvent e) { updateMouse(e); }
-            @Override public void mouseExited(MouseEvent e) { mouseSnap = null; }
+            @Override public void mouseExited(MouseEvent e) { dangqianshubiaojingweidu = null; }
         };
         addMouseListener(ma); addMouseMotionListener(ma);
         addMouseWheelListener(e -> {
@@ -479,14 +479,14 @@ public class PaintBoard extends JPanel {
             double target = clamp(ppd * factor, minPpd, maxPpd);
             if (target == ppd) return;
             int mx = e.getX(), my = e.getY();
-            double lonUnder = lonCenter + (mx - getWidth() / 2.0) / ppd, latUnder = latCenter - (my - getHeight() / 2.0) / ppd;
+            double lonUnder = shituzhongxinjingdu + (mx - getWidth() / 2.0) / ppd, latUnder = shituzhongxinweidu - (my - getHeight() / 2.0) / ppd;
             ppd = target;
-            lonCenter = lonUnder - (mx - getWidth() / 2.0) / ppd;
-            latCenter = latUnder + (my - getHeight() / 2.0) / ppd;
+            shituzhongxinjingdu = lonUnder - (mx - getWidth() / 2.0) / ppd;
+            shituzhongxinweidu = latUnder + (my - getHeight() / 2.0) / ppd;
             clampView();
         });
         addComponentListener(new ComponentAdapter() { @Override public void componentResized(ComponentEvent e) { clampView(); } });
-        fpsMonitor.scheduleAtFixedRate(() -> currentFps.set(frameCounter.getAndSet(0)), 1, 1, TimeUnit.SECONDS);
+        FPSjianting.scheduleAtFixedRate(() -> currentFps.set(frameCounter.getAndSet(0)), 1, 1, TimeUnit.SECONDS);
     }
     private static void deleteRecursively(File f) {
         if (f == null || !f.exists()) return;
@@ -499,7 +499,7 @@ public class PaintBoard extends JPanel {
     }
     private void updateMouse(MouseEvent e) {
         if (getWidth() <= 0 || getHeight() <= 0) return;
-        double[] ll = screenToLonLat(e.getX(), e.getY()); mouseSnap = new MouseSnapshot(ll[0], ll[1]);
+        double[] ll = screenToLonLat(e.getX(), e.getY()); dangqianshubiaojingweidu = new shubiaojingweidu(ll[0], ll[1]);
     }
     private void markWorldDirty() { worldDirty = true; }
     public void Static() { markWorldDirty(); }
@@ -519,33 +519,33 @@ public class PaintBoard extends JPanel {
         runOnEDT(() -> { GeoComponent g = findAnniu(bianhao); if (g == null) return; g.minScale = Math.max(0.01f, min); g.maxScale = Math.max(g.minScale, max); layoutGeoComponents(); });
     }
     public void setTextScaleLimit(int bianhao, float min, float max) {
-        runOnEDT(() -> { GeoText t = findWenben(bianhao); if (t == null) return; t.minScale = Math.max(0.01f, min); t.maxScale = Math.max(t.minScale, max); });
+        runOnEDT(() -> { wuliwenben t = findWenben(bianhao); if (t == null) return; t.minScale = Math.max(0.01f, min); t.maxScale = Math.max(t.minScale, max); });
     }
 
     public dian addGeoDot(double lon, double lat, double radiusDeg, Color color) { return addGeoDot(lon, lat, radiusDeg, color, (String) null); }
     public dian addGeoDot(double lon, double lat, double radiusDeg, Color color, String text) { return addGeoDot(lon, lat, radiusDeg, color, null, null, text, false, 0f); }
     public dian addGeoDot(double lon, double lat, double radiusDeg, Color color, Color borderColor, Color textColor, String text, boolean textScale, float borderWidth) {
         dian d = new dian(lon, lat, radiusDeg, color, borderColor, textColor, text, textScale, borderWidth);
-        d.screenSpace = false; geoDots.add(d);
-        if (batchDepth == 0 && bakeStaticDots) markWorldDirty();
+        d.screenSpace = false; feiwulidianji.add(d);
+        if (batchDepth == 0 && shifouhongpeidiandaotitu) markWorldDirty();
         return d;
     }
-    public dian addGeoDot(double lon, double lat, double radiusDeg, Color color, Source source) {
+    public dian addGeoDot(double lon, double lat, double radiusDeg, Color color, zidonggengxinhuitiao zidonggengxinhuitiao) {
         dian d = new dian(lon, lat, radiusDeg, color, null, null, null, false, 0f);
-        d.screenSpace = false; d.source = source; geoDots.add(d);
-        if (batchDepth == 0 && bakeStaticDots) markWorldDirty();
+        d.screenSpace = false; d.zidonggengxinhuitiao = zidonggengxinhuitiao; feiwulidianji.add(d);
+        if (batchDepth == 0 && shifouhongpeidiandaotitu) markWorldDirty();
         return d;
     }
     public dian addGeoDotLive(double lon, double lat, double radiusDeg, Color color) { return addGeoDotLive(lon, lat, radiusDeg, color, null, 0f); }
     public dian addGeoDotLive(double lon, double lat, double radiusDeg, Color color, Color borderColor, float borderWidth) {
         dian d = new dian(lon, lat, radiusDeg, color, borderColor, null, null, false, borderWidth);
-        d.screenSpace = true; geoDots.add(d); liveDots.add(d);
+        d.screenSpace = true; feiwulidianji.add(d); livedianji.add(d);
         markLiveDotBucketsDirty(); bumpLiveDotsVersion();
         return d;
     }
-    public dian addGeoDotLive(double lon, double lat, double radiusDeg, Color color, Source source) {
+    public dian addGeoDotLive(double lon, double lat, double radiusDeg, Color color, zidonggengxinhuitiao zidonggengxinhuitiao) {
         dian d = new dian(lon, lat, radiusDeg, color, null, null, null, false, 0f);
-        d.screenSpace = true; d.source = source; geoDots.add(d); liveDots.add(d);
+        d.screenSpace = true; d.zidonggengxinhuitiao = zidonggengxinhuitiao; feiwulidianji.add(d); livedianji.add(d);
         markLiveDotBucketsDirty(); bumpLiveDotsVersion();
         return d;
     }
@@ -553,39 +553,39 @@ public class PaintBoard extends JPanel {
     public int addLiveLine(double lon1, double lat1, double lon2, double lat2, Color color) { return addLiveLine(lon1, lat1, lon2, lat2, color, 2f); }
     public int addLiveLine(double lon1, double lat1, double lon2, double lat2, Color color, float strokeWidth) {
         final int bianhao = nextLiveLineBianhao.getAndIncrement();
-        final LiveLine L = new LiveLine(bianhao, lon1, lat1, lon2, lat2, color, strokeWidth);
-        runOnEDT(() -> liveLines.add(L));
+        final livexian L = new livexian(bianhao, lon1, lat1, lon2, lat2, color, strokeWidth);
+        runOnEDT(() -> livexians.add(L));
         return bianhao;
     }
     public void removeLiveLine(int bianhao) {
         if (bianhao <= 0) return;
-        runOnEDT(() -> { for (int i = 0, n = liveLines.size(); i < n; i++) if (liveLines.get(i).bianhao == bianhao) { liveLines.remove(i); return; } });
+        runOnEDT(() -> { for (int i = 0, n = livexians.size(); i < n; i++) if (livexians.get(i).bianhao == bianhao) { livexians.remove(i); return; } });
     }
-    public void clearLiveLines() { runOnEDT(() -> { if (!liveLines.isEmpty()) liveLines.clear(); }); }
-    public LiveLine getLiveLine(int bianhao) {
+    public void qingkonglivexian() { runOnEDT(() -> { if (!livexians.isEmpty()) livexians.clear(); }); }
+    public livexian getLiveLine(int bianhao) {
         if (bianhao <= 0) return null;
-        for (int i = 0, n = liveLines.size(); i < n; i++) if (liveLines.get(i).bianhao == bianhao) return liveLines.get(i);
+        for (int i = 0, n = livexians.size(); i < n; i++) if (livexians.get(i).bianhao == bianhao) return livexians.get(i);
         return null;
     }
     public void setLiveLineVisible(int bianhao, boolean visible) {
-        runOnEDT(() -> { LiveLine L = getLiveLine(bianhao); if (L == null || L.visible == visible) return; L.visible = visible; });
+        runOnEDT(() -> { livexian L = getLiveLine(bianhao); if (L == null || L.visible == visible) return; L.visible = visible; });
     }
-    public int getLiveLineCount() { return liveLines.size(); }
+    public int getLiveLineCount() { return livexians.size(); }
 
     public dian addAutoDot(Object target, double radiusDeg) {
-        Source s = LiveBinder.toSource(target);
+        zidonggengxinhuitiao s = LiveBinder.toSource(target);
         dian d = new dian(s.getLon(), s.getLat(), radiusDeg, s.getColor(), null, null, s.getText(), false, 0f);
-        d.source = s; d.screenSpace = false; geoDots.add(d); LiveRegistry.bind(target, this);
-        if (batchDepth == 0 && bakeStaticDots) markWorldDirty();
+        d.zidonggengxinhuitiao = s; d.screenSpace = false; feiwulidianji.add(d); LiveRegistry.bind(target, this);
+        if (batchDepth == 0 && shifouhongpeidiandaotitu) markWorldDirty();
         return d;
     }
     public dian addAutoDot(Object pos, Object colorObj, double radiusDeg) {
-        Source ps = LiveBinder.toSource(pos);
-        Source cs = (colorObj == null) ? null : LiveBinder.toSource(colorObj);
+        zidonggengxinhuitiao ps = LiveBinder.toSource(pos);
+        zidonggengxinhuitiao cs = (colorObj == null) ? null : LiveBinder.toSource(colorObj);
         Color init = (cs != null ? cs.getColor() : ps.getColor());
         dian d = new dian(ps.getLon(), ps.getLat(), radiusDeg, init, null, null, ps.getText(), false, 0f);
-        if (cs == null) d.source = ps;
-        else d.source = new Source() {
+        if (cs == null) d.zidonggengxinhuitiao = ps;
+        else d.zidonggengxinhuitiao = new zidonggengxinhuitiao() {
             @Override public double getLon() { return ps.getLon(); }
             @Override public double getLat() { return ps.getLat(); }
             @Override public Color getColor() { Color c = cs.getColor(); return (c != null) ? c : ps.getColor(); }
@@ -594,42 +594,42 @@ public class PaintBoard extends JPanel {
             @Override public Float getFontSize() { return ps.getFontSize(); }
             @Override public Boolean getVisible() { return ps.getVisible(); }
         };
-        d.screenSpace = false; geoDots.add(d);
+        d.screenSpace = false; feiwulidianji.add(d);
         LiveRegistry.bind(pos, this); if (colorObj != null) LiveRegistry.bind(colorObj, this);
-        if (batchDepth == 0 && bakeStaticDots) markWorldDirty();
+        if (batchDepth == 0 && shifouhongpeidiandaotitu) markWorldDirty();
         return d;
     }
     public int addAutoText(Object target, int fontSize) { return addAutoText(target, fontSize, null); }
     public int addAutoText(Object target, int fontSize, JComponent attachedTo) {
-        Source s = LiveBinder.toSource(target);
-        GeoText t = addGeoTextInternal(s.getText(), s.getLon(), s.getLat(), fontSize, s.getColor(), true);
+        zidonggengxinhuitiao s = LiveBinder.toSource(target);
+        wuliwenben t = addGeoTextInternal(s.getText(), s.getLon(), s.getLat(), fontSize, s.getColor(), true);
         if (attachedTo != null) t.attachedTo = attachedTo;
-        t.minScale = textMinScale; t.maxScale = textMaxScale; t.source = s;
+        t.minScale = livedilizujianzuixiaozhi; t.maxScale = livedilizujianzuidazhi; t.zidonggengxinhuitiao = s;
         LiveRegistry.bind(target, this);
         return t.bianhao;
     }
     public int addAutoComponent(JComponent comp, Object target) {
         if (comp == null) return -1;
-        Source s = LiveBinder.toSource(target); Dimension d = comp.getPreferredSize();
+        zidonggengxinhuitiao s = LiveBinder.toSource(target); Dimension d = comp.getPreferredSize();
         int bianhao = addGeoComponentInternal2(comp, s.getLon(), s.getLat(), -d.width / 2, -d.height / 2, true, s);
         LiveRegistry.bind(target, this);
         return bianhao;
     }
     public int addAutoComponent(JComponent comp, Object target, int anchorX, int anchorY) {
         if (comp == null) return -1;
-        Source s = LiveBinder.toSource(target);
+        zidonggengxinhuitiao s = LiveBinder.toSource(target);
         int bianhao = addGeoComponentInternal2(comp, s.getLon(), s.getLat(), anchorX, anchorY, true, s);
         LiveRegistry.bind(target, this);
         return bianhao;
     }
 
-    private void updDot(dian d, Runnable r) { if (d == null) return; runOnEDT(() -> { r.run(); if (!d.screenSpace && bakeStaticDots) markWorldDirty(); }); }
+    private void updDot(dian d, Runnable r) { if (d == null) return; runOnEDT(() -> { r.run(); if (!d.screenSpace && shifouhongpeidiandaotitu) markWorldDirty(); }); }
     public void setGeoDotScreenSpace(dian d, boolean on) {
         if (d == null) return;
         runOnEDT(() -> {
             if (d.screenSpace == on) return;
             d.screenSpace = on;
-            if (on) { if (!liveDots.contains(d)) liveDots.add(d); } else liveDots.remove(d);
+            if (on) { if (!livedianji.contains(d)) livedianji.add(d); } else livedianji.remove(d);
             markLiveDotBucketsDirty();
             bumpLiveDotsVersion();
             markWorldDirty();
@@ -637,13 +637,13 @@ public class PaintBoard extends JPanel {
     }
     public void removeGeoDot(dian d) {
         if (d == null) return;
-        geoDots.remove(d); liveDots.remove(d);
+        feiwulidianji.remove(d); livedianji.remove(d);
         markLiveDotBucketsDirty();
         bumpLiveDotsVersion();
         markWorldDirty();
     }
     public void clearGeoDots() {
-        geoDots.clear(); liveDots.clear(); visibleLiveDots.clear();
+        feiwulidianji.clear(); livedianji.clear(); shitulivedianji.clear();
         markLiveDotBucketsDirty();
         bumpLiveDotsVersion();
         markWorldDirty();
@@ -658,26 +658,26 @@ public class PaintBoard extends JPanel {
     public void setGeoDotRadius(dian d, double radiusDeg) { updDot(d, () -> d.radiusDeg = radiusDeg); }
     public void setGeoDotVisible(dian d, boolean visible) { updDot(d, () -> d.visible = visible); }
 
-    private GeoText addGeoTextInternal(String text, double lon, double lat, int fontSize, Color color, boolean scaleWithZoom) {
+    private wuliwenben addGeoTextInternal(String text, double lon, double lat, int fontSize, Color color, boolean scaleWithZoom) {
         final int bianhao = nextWenbenBianhao.getAndIncrement();
-        GeoText t = new GeoText(lon, lat, text, fontSize, color, scaleWithZoom, this.ppd, bianhao);
+        wuliwenben t = new wuliwenben(lon, lat, text, fontSize, color, scaleWithZoom, this.ppd, bianhao);
         t.outlineColor = new Color(0, 0, 0, 220); t.outlineWidth = 2.5f;
-        t.minScale = textMinScale; t.maxScale = textMaxScale;
-        runOnEDT(() -> geoTexts.add(t));
+        t.minScale = livedilizujianzuixiaozhi; t.maxScale = livedilizujianzuidazhi;
+        runOnEDT(() -> wuliwenbens.add(t));
         return t;
     }
     public int addGeoText(String text, double lon, double lat, int fontSize) { return addGeoText(text, lon, lat, fontSize, Color.WHITE, true); }
     public int addGeoText(String text, double lon, double lat, int fontSize, Color color) { return addGeoText(text, lon, lat, fontSize, color, true); }
     public int addGeoText(String text, double lon, double lat, int fontSize, Color color, boolean scaleWithZoom) { return addGeoTextInternal(text, lon, lat, fontSize, color, scaleWithZoom).bianhao; }
     public int addGeoText(String text, double lon, double lat, int fontSize, Color color, JComponent attachedTo) {
-        GeoText t = addGeoTextInternal(text, lon, lat, fontSize, color, true); t.attachedTo = attachedTo; return t.bianhao;
+        wuliwenben t = addGeoTextInternal(text, lon, lat, fontSize, color, true); t.attachedTo = attachedTo; return t.bianhao;
     }
-    public int addGeoText(String text, double lon, double lat, int fontSize, Color color, JComponent attachedTo, Source source) {
-        GeoText t = addGeoTextInternal(text, lon, lat, fontSize, color, true); t.attachedTo = attachedTo; t.source = source; return t.bianhao;
+    public int addGeoText(String text, double lon, double lat, int fontSize, Color color, JComponent attachedTo, zidonggengxinhuitiao zidonggengxinhuitiao) {
+        wuliwenben t = addGeoTextInternal(text, lon, lat, fontSize, color, true); t.attachedTo = attachedTo; t.zidonggengxinhuitiao = zidonggengxinhuitiao; return t.bianhao;
     }
-    public void removeGeoText(GeoText t) { if (t != null) geoTexts.remove(t); }
-    public void clearGeoTexts() { geoTexts.clear(); }
-    public GeoText getWenbenObject(int bianhao) { return findWenben(bianhao); }
+    public void removeGeoText(wuliwenben t) { if (t != null) wuliwenbens.remove(t); }
+    public void clearGeoTexts() { wuliwenbens.clear(); }
+    public wuliwenben getWenbenObject(int bianhao) { return findWenben(bianhao); }
     public void setwenbenBYbianhao(int bianhao, String text, double lon, double lat, int fontSize) { setWenben0(bianhao, text, lon, lat, fontSize, null, null, null, false); }
     public void setwenbenBYbianhao(int bianhao, String text, double lon, double lat, int fontSize, Color color) { setWenben0(bianhao, text, lon, lat, fontSize, color, null, null, false); }
     public void setwenbenBYbianhao(int bianhao, String text, double lon, double lat, int fontSize, Color color, boolean scaleWithZoom) { setWenben0(bianhao, text, lon, lat, fontSize, color, scaleWithZoom, null, false); }
@@ -685,7 +685,7 @@ public class PaintBoard extends JPanel {
     private void setWenben0(final int bianhao, final String text, final double lon, final double lat, final int fontSize, final Color color, final Boolean scaleWithZoom, final JComponent attachedTo, final boolean changeAttached) {
         if (bianhao <= 0) return;
         runOnEDT(() -> {
-            GeoText t = findWenben(bianhao); if (t == null) return;
+            wuliwenben t = findWenben(bianhao); if (t == null) return;
             if (text != null) t.text = text;
             t.lon = lon; t.lat = lat;
             if (fontSize > 0) t.baseFontSize = fontSize;
@@ -702,27 +702,27 @@ public class PaintBoard extends JPanel {
     }
     public int addGeoComponent(JComponent comp, double lon, double lat, int anchorX, int anchorY) { return addGeoComponent(comp, lon, lat, anchorX, anchorY, true); }
     public int addGeoComponent(JComponent comp, double lon, double lat, int anchorX, int anchorY, boolean scaleWithZoom) { return addGeoComponentInternal2(comp, lon, lat, anchorX, anchorY, scaleWithZoom, null); }
-    public int addGeoComponent(JComponent comp, double lon, double lat, Source source) {
+    public int addGeoComponent(JComponent comp, double lon, double lat, zidonggengxinhuitiao zidonggengxinhuitiao) {
         if (comp == null) return -1;
         Dimension d = comp.getPreferredSize();
-        return addGeoComponentInternal2(comp, lon, lat, -d.width / 2, -d.height / 2, true, source);
+        return addGeoComponentInternal2(comp, lon, lat, -d.width / 2, -d.height / 2, true, zidonggengxinhuitiao);
     }
-    public int addGeoComponent(JComponent comp, double lon, double lat, int anchorX, int anchorY, Source source) { return addGeoComponentInternal2(comp, lon, lat, anchorX, anchorY, true, source); }
-    public int addGeoComponent(JComponent comp, double lon, double lat, int anchorX, int anchorY, boolean scaleWithZoom, Source source) { return addGeoComponentInternal2(comp, lon, lat, anchorX, anchorY, scaleWithZoom, source); }
-    private int addGeoComponentInternal2(JComponent comp, double lon, double lat, int anchorX, int anchorY, boolean scaleWithZoom, Source source) {
+    public int addGeoComponent(JComponent comp, double lon, double lat, int anchorX, int anchorY, zidonggengxinhuitiao zidonggengxinhuitiao) { return addGeoComponentInternal2(comp, lon, lat, anchorX, anchorY, true, zidonggengxinhuitiao); }
+    public int addGeoComponent(JComponent comp, double lon, double lat, int anchorX, int anchorY, boolean scaleWithZoom, zidonggengxinhuitiao zidonggengxinhuitiao) { return addGeoComponentInternal2(comp, lon, lat, anchorX, anchorY, scaleWithZoom, zidonggengxinhuitiao); }
+    private int addGeoComponentInternal2(JComponent comp, double lon, double lat, int anchorX, int anchorY, boolean scaleWithZoom, zidonggengxinhuitiao zidonggengxinhuitiao) {
         if (comp == null) return -1;
         final int bianhao = nextAnniuBianhao.getAndIncrement();
-        runOnEDT(() -> addGeoComponentInternal(bianhao, comp, lon, lat, anchorX, anchorY, scaleWithZoom, source));
+        runOnEDT(() -> addGeoComponentInternal(bianhao, comp, lon, lat, anchorX, anchorY, scaleWithZoom, zidonggengxinhuitiao));
         return bianhao;
     }
-    private void addGeoComponentInternal(int bianhao, JComponent comp, double lon, double lat, int anchorX, int anchorY, boolean scaleWithZoom, Source source) {
+    private void addGeoComponentInternal(int bianhao, JComponent comp, double lon, double lat, int anchorX, int anchorY, boolean scaleWithZoom, zidonggengxinhuitiao zidonggengxinhuitiao) {
         comp.setFocusable(false);
         Dimension pref = comp.getPreferredSize();
         int w = pref.width > 0 ? pref.width : 60, h = pref.height > 0 ? pref.height : 24;
-        Font f = comp.getFont(); if (f == null) f = UIManager.getFont("Button.font"); if (f == null) f = new Font(UI_FONT, Font.PLAIN, 12);
+        Font f = comp.getFont(); if (f == null) f = UIManager.getFont("Button.font"); if (f == null) f = new Font(ziti, Font.PLAIN, 12);
         add(comp);
         GeoComponent gc = new GeoComponent(bianhao, comp, lon, lat, anchorX, anchorY, w, h, this.ppd, f, scaleWithZoom);
-        gc.source = source; gc.minScale = buttonMinScale; gc.maxScale = buttonMaxScale;
+        gc.zidonggengxinhuitiao = zidonggengxinhuitiao; gc.minScale = liveanniuzujianzuixiaozhi; gc.maxScale = liveanniuzujianzuidazhi;
         geoComponents.add(gc);
         comp.addPropertyChangeListener("preferredSize", geoCompPropListener);
         layoutGeoComponents();
@@ -744,7 +744,7 @@ public class PaintBoard extends JPanel {
     }
     public void removeWenbenBYbianhao(int bianhao) {
         if (bianhao <= 0) return;
-        runOnEDT(() -> { for (int i = 0, n = geoTexts.size(); i < n; i++) if (geoTexts.get(i).bianhao == bianhao) { geoTexts.remove(i); return; } });
+        runOnEDT(() -> { for (int i = 0, n = wuliwenbens.size(); i < n; i++) if (wuliwenbens.get(i).bianhao == bianhao) { wuliwenbens.remove(i); return; } });
     }
     public void clearGeoComponents() {
         if (!SwingUtilities.isEventDispatchThread()) { SwingUtilities.invokeLater(this::clearGeoComponents); return; }
@@ -758,7 +758,7 @@ public class PaintBoard extends JPanel {
             GeoComponent g = geoComponents.get(i);
             if (g.comp == comp) {
                 GeoComponent ng = new GeoComponent(g.bianhao, g.comp, lon, lat, g.anchorX, g.anchorY, g.baseW, g.baseH, g.basePpd, g.baseFont, g.scaleWithZoom);
-                ng.currentFontSize = g.currentFontSize; ng.source = g.source; ng.visibleBySource = g.visibleBySource;
+                ng.currentFontSize = g.currentFontSize; ng.zidonggengxinhuitiao = g.zidonggengxinhuitiao; ng.visibleBySource = g.visibleBySource;
                 ng.minScale = g.minScale; ng.maxScale = g.maxScale;
                 geoComponents.set(i, ng); layoutGeoComponents(); return;
             }
@@ -792,18 +792,18 @@ public class PaintBoard extends JPanel {
             Dimension pref = comp.getPreferredSize();
             int w = (pref != null && pref.width > 0) ? pref.width : old.baseW;
             int h = (pref != null && pref.height > 0) ? pref.height : old.baseH;
-            Font f = comp.getFont(); if (f == null) f = old.baseFont; if (f == null) f = new Font(UI_FONT, Font.PLAIN, 12);
+            Font f = comp.getFont(); if (f == null) f = old.baseFont; if (f == null) f = new Font(ziti, Font.PLAIN, 12);
             GeoComponent ng = new GeoComponent(bianhao, comp, lon, lat,
                     anchorX != null ? anchorX : old.anchorX, anchorY != null ? anchorY : old.anchorY, w, h, old.basePpd, f,
                     scaleWithZoom != null ? scaleWithZoom : old.scaleWithZoom);
             ng.currentFontSize = swapped ? -1f : old.currentFontSize;
-            ng.source = old.source; ng.visibleBySource = old.visibleBySource;
+            ng.zidonggengxinhuitiao = old.zidonggengxinhuitiao; ng.visibleBySource = old.visibleBySource;
             ng.minScale = old.minScale; ng.maxScale = old.maxScale;
             geoComponents.set(idx, ng); layoutGeoComponents();
         });
     }
     public JComponent getAnniuBYbianhao(int bianhao) { GeoComponent g = findAnniu(bianhao); return g == null ? null : g.comp; }
-    public GeoText getWenbenBYbianhao(int bianhao) { return findWenben(bianhao); }
+    public wuliwenben getWenbenBYbianhao(int bianhao) { return findWenben(bianhao); }
 
     private void layoutGeoComponents() {
         if (geoComponents.isEmpty()) return;
@@ -812,9 +812,9 @@ public class PaintBoard extends JPanel {
         double halfW = W / 2.0, halfH = H / 2.0;
         for (int i = 0, n = geoComponents.size(); i < n; i++) {
             GeoComponent g = geoComponents.get(i);
-            double dLon = g.lon - lonCenter;
+            double dLon = g.lon - shituzhongxinjingdu;
             dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
-            int x = (int) Math.round(dLon * ppd + halfW), y = (int) Math.round((latCenter - g.lat) * ppd + halfH);
+            int x = (int) Math.round(dLon * ppd + halfW), y = (int) Math.round((shituzhongxinweidu - g.lat) * ppd + halfH);
             double scale = 1.0;
             if (g.scaleWithZoom && g.basePpd > 1e-9) {
                 scale = ppd / g.basePpd;
@@ -833,12 +833,12 @@ public class PaintBoard extends JPanel {
     }
 
     private void syncLive() {
-        if (geoDots.isEmpty() && geoTexts.isEmpty() && geoComponents.isEmpty()) return;
-        final int dotCount = geoDots.size();
+        if (feiwulidianji.isEmpty() && wuliwenbens.isEmpty() && geoComponents.isEmpty()) return;
+        final int dotCount = feiwulidianji.size();
         if (dotCount > 0) {
             boolean dotDirty = false;
             for (int i = 0; i < dotCount; i++) {
-                dian d = geoDots.get(i); Source s = d.source; if (s == null) continue;
+                dian d = feiwulidianji.get(i); zidonggengxinhuitiao s = d.zidonggengxinhuitiao; if (s == null) continue;
                 double nl = s.getLon(), na = s.getLat();
                 if (nl != d.lon || na != d.lat) { d.lon = nl; d.lat = na; if (!d.screenSpace) dotDirty = true; }
                 Color nc = s.getColor();
@@ -850,12 +850,12 @@ public class PaintBoard extends JPanel {
                 Boolean nv = s.getVisible();
                 if (nv != null && nv != d.visible) { d.visible = nv; if (!d.screenSpace) dotDirty = true; }
             }
-            if (dotDirty && bakeStaticDots) markWorldDirty();
+            if (dotDirty && shifouhongpeidiandaotitu) markWorldDirty();
         }
-        final int textCount = geoTexts.size();
+        final int textCount = wuliwenbens.size();
         if (textCount > 0) {
             for (int i = 0; i < textCount; i++) {
-                GeoText t = geoTexts.get(i); Source s = t.source; if (s == null) continue;
+                wuliwenben t = wuliwenbens.get(i); zidonggengxinhuitiao s = t.zidonggengxinhuitiao; if (s == null) continue;
                 double nl = s.getLon(), na = s.getLat();
                 if (nl != t.lon) t.lon = nl; if (na != t.lat) t.lat = na;
                 String nt = s.getText(); if (nt != null && !nt.equals(t.text)) t.text = nt;
@@ -868,7 +868,7 @@ public class PaintBoard extends JPanel {
         if (compCount > 0) {
             boolean needLayout = false;
             for (int i = 0; i < compCount; i++) {
-                GeoComponent g = geoComponents.get(i); Source s = g.source; if (s == null) continue;
+                GeoComponent g = geoComponents.get(i); zidonggengxinhuitiao s = g.zidonggengxinhuitiao; if (s == null) continue;
                 double nl = s.getLon(), na = s.getLat();
                 if (nl != g.lon || na != g.lat) { g.lon = nl; g.lat = na; needLayout = true; }
                 Boolean nv = s.getVisible(); if (nv != null && nv != g.visibleBySource) { g.visibleBySource = nv; needLayout = true; }
@@ -901,20 +901,20 @@ public class PaintBoard extends JPanel {
         double effMinPpd = Math.max(minPpd, fitMin);
         ppd = clamp(ppd, effMinPpd, Math.max(effMinPpd, maxPpd));
         double halfLon = W / (2.0 * ppd), halfLat = H / (2.0 * ppd);
-        double latMin = hasLatBounds ? Math.max(latBoundMin, WORLD_LAT_MIN) : WORLD_LAT_MIN;
-        double latMax = hasLatBounds ? Math.min(latBoundMax, WORLD_LAT_MAX) : WORLD_LAT_MAX;
-        if (halfLat >= (latMax - latMin) / 2) latCenter = (latMin + latMax) / 2;
-        else latCenter = clamp(latCenter, latMin + halfLat, latMax - halfLat);
+        double latMin = hasLatBounds ? Math.max(latBoundMin, shijieweidufanwei_MIN) : shijieweidufanwei_MIN;
+        double latMax = hasLatBounds ? Math.min(latBoundMax, shijieweidufanwei_MAX) : shijieweidufanwei_MAX;
+        if (halfLat >= (latMax - latMin) / 2) shituzhongxinweidu = (latMin + latMax) / 2;
+        else shituzhongxinweidu = clamp(shituzhongxinweidu, latMin + halfLat, latMax - halfLat);
         if (hasLonBounds) {
-            if (halfLon >= (lonBoundMax - lonBoundMin) / 2) lonCenter = (lonBoundMin + lonBoundMax) / 2;
-            else lonCenter = clamp(lonCenter, lonBoundMin + halfLon, lonBoundMax - halfLon);
-        } else lonCenter = normalizeLon(lonCenter);
+            if (halfLon >= (lonBoundMax - lonBoundMin) / 2) shituzhongxinjingdu = (lonBoundMin + lonBoundMax) / 2;
+            else shituzhongxinjingdu = clamp(shituzhongxinjingdu, lonBoundMin + halfLon, lonBoundMax - halfLon);
+        } else shituzhongxinjingdu = normalizeLon(shituzhongxinjingdu);
         layoutGeoComponents();
     }
 
     public void drawLine(double lon1, double lat1, double lon2, double lat2) {
         final Color c = brushColor; final int s = brushSize;
-        shapes.add((g2, b) -> {
+        minglingliebiao.add((g2, b) -> {
             g2.setColor(c); g2.setStroke(new BasicStroke(s, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             for (int k = -1; k <= 1; k++) {
                 int[] p1 = b.lonLatToScreen(lon1 + k * 360.0, lat1), p2 = b.lonLatToScreen(lon2 + k * 360.0, lat2);
@@ -925,7 +925,7 @@ public class PaintBoard extends JPanel {
     }
     public void drawPoint(double lon, double lat) {
         final Color c = brushColor; final int s = brushSize;
-        shapes.add((g2, b) -> {
+        minglingliebiao.add((g2, b) -> {
             int r = Math.max(s / 2, 1); g2.setColor(c);
             for (int k = -1; k <= 1; k++) { int[] p = b.lonLatToScreen(lon + k * 360.0, lat); g2.fill(new Ellipse2D.Double(p[0] - r, p[1] - r, r * 2.0, r * 2.0)); }
         });
@@ -933,7 +933,7 @@ public class PaintBoard extends JPanel {
     }
     public void drawOval(double lon, double lat, double lonSpan, double latSpan) {
         final Color c = brushColor; final int s = brushSize;
-        shapes.add((g2, b) -> {
+        minglingliebiao.add((g2, b) -> {
             g2.setColor(c); g2.setStroke(new BasicStroke(s, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             for (int k = -1; k <= 1; k++) {
                 int[] p1 = b.lonLatToScreen(lon + k * 360.0, lat), p2 = b.lonLatToScreen(lon + lonSpan + k * 360.0, lat + latSpan);
@@ -945,7 +945,7 @@ public class PaintBoard extends JPanel {
     }
     public void drawRect(double lon, double lat, double lonSpan, double latSpan) {
         final Color c = brushColor; final int s = brushSize;
-        shapes.add((g2, b) -> {
+        minglingliebiao.add((g2, b) -> {
             g2.setColor(c); g2.setStroke(new BasicStroke(s, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
             for (int k = -1; k <= 1; k++) {
                 int[] p1 = b.lonLatToScreen(lon + k * 360.0, lat), p2 = b.lonLatToScreen(lon + lonSpan + k * 360.0, lat + latSpan);
@@ -957,38 +957,38 @@ public class PaintBoard extends JPanel {
     }
     public void drawText(String text, double lon, double lat, int fontSize) {
         final Color c = brushColor;
-        shapes.add((g2, b) -> {
+        minglingliebiao.add((g2, b) -> {
             g2.setColor(c);
-            int fs = b.bakingMode ? Math.max(1, (int) Math.round(fontSize * WORLD_BASE_PPD / 6.0)) : fontSize;
-            g2.setFont(uiFont(fs));
+            int fs = b.bakingMode ? Math.max(1, (int) Math.round(fontSize * jichuxiangsushu / 6.0)) : fontSize;
+            g2.setFont(huoqusizedaxiaodeziti(fs));
             for (int k = -1; k <= 1; k++) { int[] p = b.lonLatToScreen(lon + k * 360.0, lat); g2.drawString(text, p[0], p[1]); }
         });
         markWorldDirty();
     }
-    public void clear() { shapes.clear(); markWorldDirty(); }
-    public void undo() { if (!shapes.isEmpty()) { shapes.remove(shapes.size() - 1); markWorldDirty(); } }
+    public void clear() { minglingliebiao.clear(); markWorldDirty(); }
+    public void undo() { if (!minglingliebiao.isEmpty()) { minglingliebiao.remove(minglingliebiao.size() - 1); markWorldDirty(); } }
 
-    public void centerOn(double lon, double lat) { lonCenter = lon; latCenter = lat; clampView(); }
+    public void centerOn(double lon, double lat) { shituzhongxinjingdu = lon; shituzhongxinweidu = lat; clampView(); }
     public void setZoom(double pixelsPerDegree) { ppd = pixelsPerDegree; clampView(); }
-    public void resetView() { lonCenter = 0; latCenter = 0; ppd = Math.max(minPpd, 6); clampView(); }
-    public double getLonCenter() { return lonCenter; }
-    public double getLatCenter() { return latCenter; }
+    public void resetView() { shituzhongxinjingdu = 0; shituzhongxinweidu = 0; ppd = Math.max(minPpd, 6); clampView(); }
+    public double getShituzhongxinjingdu() { return shituzhongxinjingdu; }
+    public double getShituzhongxinweidu() { return shituzhongxinweidu; }
     public double getZoom() { return ppd; }
     public void addMarker(double lon, double lat, Color color, int size, String text) { markers.add(new Marker(lon, lat, color, size, text)); markWorldDirty(); }
     public void clearMarkers() { markers.clear(); markWorldDirty(); }
 
     public int[] lonLatToScreen(double lon, double lat) {
-        if (bakingMode) return new int[]{ (int) Math.round((lon + 180) * (double) WORLD_BASE_PPD), (int) Math.round((90 - lat) * (double) WORLD_BASE_PPD) };
-        return new int[]{ (int) Math.round((lon - lonCenter) * ppd + getWidth() / 2.0), (int) Math.round((latCenter - lat) * ppd + getHeight() / 2.0) };
+        if (bakingMode) return new int[]{ (int) Math.round((lon + 180) * (double) jichuxiangsushu), (int) Math.round((90 - lat) * (double) jichuxiangsushu) };
+        return new int[]{ (int) Math.round((lon - shituzhongxinjingdu) * ppd + getWidth() / 2.0), (int) Math.round((shituzhongxinweidu - lat) * ppd + getHeight() / 2.0) };
     }
     public double[] screenToLonLat(int x, int y) {
-        double lon = lonCenter + (x - getWidth() / 2.0) / ppd, lat = latCenter - (y - getHeight() / 2.0) / ppd;
-        return new double[]{ normalizeLon(lon), clamp(lat, WORLD_LAT_MIN, WORLD_LAT_MAX) };
+        double lon = shituzhongxinjingdu + (x - getWidth() / 2.0) / ppd, lat = shituzhongxinweidu - (y - getHeight() / 2.0) / ppd;
+        return new double[]{ normalizeLon(lon), clamp(lat, shijieweidufanwei_MIN, shijieweidufanwei_MAX) };
     }
 
     public Color getColorAtLonLat(double lon, double lat) { return getColorAtLonLat(lon, lat, null); }
     public Color getColorAtLonLat(double lon, double lat, Color emptyColor) {
-        if (lat < WORLD_LAT_MIN || lat > WORLD_LAT_MAX) return emptyColor;
+        if (lat < shijieweidufanwei_MIN || lat > shijieweidufanwei_MAX) return emptyColor;
         if (!SwingUtilities.isEventDispatchThread()) {
             final double flon = lon, flat = lat; final Color femp = emptyColor; final Color[] out = new Color[1];
             try { SwingUtilities.invokeAndWait(() -> out[0] = getColorAtLonLat(flon, flat, femp)); }
@@ -997,9 +997,9 @@ public class PaintBoard extends JPanel {
             return out[0] != null ? out[0] : femp;
         }
         if (worldDirty) rebuildWorldCanvas();
-        MappedImage base = worldPyramid.get(0); int ppdBase = worldPyramid.getPpd(0);
+        MappedImage base = ditujingzita.get(0); int ppdBase = ditujingzita.getPpd(0);
         double nlon = normalizeLon(lon);
-        int px = (int) Math.floor((nlon + 180.0) * ppdBase), py = (int) Math.floor((WORLD_LAT_MAX - lat) * ppdBase);
+        int px = (int) Math.floor((nlon + 180.0) * ppdBase), py = (int) Math.floor((shijieweidufanwei_MAX - lat) * ppdBase);
         if (px < 0 || px >= base.getWidth() || py < 0 || py >= base.getHeight()) return emptyColor;
         int argb = base.getARGB(px, py);
         if ((argb >>> 24) == 0) return emptyColor;
@@ -1028,19 +1028,19 @@ public class PaintBoard extends JPanel {
     public Color getColorAtLonLatOnScreen(double lon, double lat) { return getColorAtLonLatOnScreen(lon, lat, null); }
     public Color getColorAtLonLatOnScreen(double lon, double lat, Color emptyColor) {
         if (getWidth() <= 0 || getHeight() <= 0) return emptyColor;
-        double nlon = normalizeLon(lon), d = nlon - lonCenter;
+        double nlon = normalizeLon(lon), d = nlon - shituzhongxinjingdu;
         while (d > 180.0) d -= 360.0; while (d < -180.0) d += 360.0;
-        int sx = (int) Math.round((lonCenter + d - lonCenter) * ppd + getWidth() / 2.0);
-        int sy = (int) Math.round((latCenter - lat) * ppd + getHeight() / 2.0);
+        int sx = (int) Math.round((shituzhongxinjingdu + d - shituzhongxinjingdu) * ppd + getWidth() / 2.0);
+        int sy = (int) Math.round((shituzhongxinweidu - lat) * ppd + getHeight() / 2.0);
         return getColorAtScreen(sx, sy, emptyColor);
     }
 
-    private void updateViewSnapshot() { cachedVpLonCenter = lonCenter; cachedVpLatCenter = latCenter; cachedVpPpd = ppd; cachedVpW = getWidth(); cachedVpH = getHeight(); }
+    private void updateViewSnapshot() { cachedVpLonCenter = shituzhongxinjingdu; cachedVpLatCenter = shituzhongxinweidu; cachedVpPpd = ppd; cachedVpW = getWidth(); cachedVpH = getHeight(); }
 
     private void rebuildVisibleLiveDots() {
         if (liveDotsCacheValid
-                && cachedVpLonCenter == lonCenter
-                && cachedVpLatCenter == latCenter
+                && cachedVpLonCenter == shituzhongxinjingdu
+                && cachedVpLatCenter == shituzhongxinweidu
                 && cachedVpPpd == ppd
                 && cachedVpW == getWidth()
                 && cachedVpH == getHeight()
@@ -1048,9 +1048,9 @@ public class PaintBoard extends JPanel {
             return;
         }
 
-        visibleLiveDots.clear();
+        shitulivedianji.clear();
         int W = getWidth(), H = getHeight();
-        if (W <= 0 || H <= 0 || liveDots.isEmpty()) {
+        if (W <= 0 || H <= 0 || livedianji.isEmpty()) {
             updateViewSnapshot();
             cachedLiveDotsVersion = liveDotsVersion;
             liveDotsCacheValid = true;
@@ -1065,8 +1065,8 @@ public class PaintBoard extends JPanel {
 
         if (liveDotBucketsDirty) rebuildLiveDotBuckets();
 
-        double lonMinWorld = wholeWorld ? -180.0 : (lonCenter - halfLon);
-        double lonMaxWorld = wholeWorld ?  180.0 : (lonCenter + halfLon);
+        double lonMinWorld = wholeWorld ? -180.0 : (shituzhongxinjingdu - halfLon);
+        double lonMaxWorld = wholeWorld ?  180.0 : (shituzhongxinjingdu + halfLon);
 
         if (!wholeWorld && lonMinWorld < -180.0) {
             scanBucketRange(lonMinWorld + 360.0, 180.0, halfW, halfH, W, H, halfLat, sxMin, sxMax);
@@ -1094,11 +1094,11 @@ public class PaintBoard extends JPanel {
             for (int i = 0, n = bucket.size(); i < n; i++) {
                 dian d = bucket.get(i);
                 if (!d.visible) continue;
-                if (d.lat < latCenter - halfLat || d.lat > latCenter + halfLat) continue;
-                double sx = (d.lon - lonCenter) * ppd + halfW, sy = (latCenter - d.lat) * ppd + halfH;
+                if (d.lat < shituzhongxinweidu - halfLat || d.lat > shituzhongxinweidu + halfLat) continue;
+                double sx = (d.lon - shituzhongxinjingdu) * ppd + halfW, sy = (shituzhongxinweidu - d.lat) * ppd + halfH;
                 if (sx < sxMin || sx > sxMax) continue;
                 if (sy < -halfH - 4 || sy > H + halfH + 4) continue;
-                d.cachedSx = sx; d.cachedSy = sy; visibleLiveDots.add(d);
+                d.cachedSx = sx; d.cachedSy = sy; shitulivedianji.add(d);
             }
         }
     }
@@ -1114,16 +1114,16 @@ public class PaintBoard extends JPanel {
         int W = getWidth(), H = getHeight();
         if (W <= 0 || H <= 0) return;
         tickFrame(); syncLive();
-        if (bakeStaticDots && worldDirty) rebuildWorldCanvas();
-        if (!liveDots.isEmpty()) rebuildVisibleLiveDots();
+        if (shifouhongpeidiandaotitu && worldDirty) rebuildWorldCanvas();
+        if (!livedianji.isEmpty()) rebuildVisibleLiveDots();
         Graphics2D g2 = (Graphics2D) g.create();
         try {
             drawGridOnScreen(g2, W, H); drawWorldCanvas(g2, W, H); drawTrailCanvas(g2, W, H);
-            if (!bakeStaticDots) drawGeoDotsCommon(g2, W, H, geoDots, false);
+            if (!shifouhongpeidiandaotitu) drawGeoDotsCommon(g2, W, H, feiwulidianji, false);
             drawLiveLines(g2, W, H);
 
-            List<dian> dotsToDraw = visibleLiveDots;
-            if (visibleLiveDots.size() > CLUSTER_TRIGGER) {
+            List<dian> dotsToDraw = shitulivedianji;
+            if (shitulivedianji.size() > CLUSTER_TRIGGER) {
                 buildClusterRepresentatives();
                 dotsToDraw = clusterRepresentatives;
             }
@@ -1136,14 +1136,14 @@ public class PaintBoard extends JPanel {
         } finally { g2.dispose(); }
     }
     private void drawSelectionBox(Graphics2D g2) {
-        if (!selectionActive || selectionStart == null || selectionEnd == null) return;
-        int x1 = Math.min(selectionStart.x, selectionEnd.x), y1 = Math.min(selectionStart.y, selectionEnd.y);
-        int x2 = Math.max(selectionStart.x, selectionEnd.x), y2 = Math.max(selectionStart.y, selectionEnd.y);
+        if (!shifouzhengzaikuangxuan || kuangxuanqidian == null || kuangxuanzhongdian == null) return;
+        int x1 = Math.min(kuangxuanqidian.x, kuangxuanzhongdian.x), y1 = Math.min(kuangxuanqidian.y, kuangxuanzhongdian.y);
+        int x2 = Math.max(kuangxuanqidian.x, kuangxuanzhongdian.x), y2 = Math.max(kuangxuanqidian.y, kuangxuanzhongdian.y);
         int w = x2 - x1, h = y2 - y1;
         if (w <= 0 && h <= 0) return;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-        g2.setColor(selectionFillColor); g2.fillRect(x1, y1, w, h);
-        g2.setColor(selectionBorderColor); g2.setStroke(STROKE_1F); g2.drawRect(x1, y1, w, h);
+        g2.setColor(kuangxuantianchangse); g2.fillRect(x1, y1, w, h);
+        g2.setColor(kuangxuanbiankuangse); g2.setStroke(huabi); g2.drawRect(x1, y1, w, h);
     }
     private void drawTrailCanvas(Graphics2D g2, int W, int H) {
         if (!hasAnyTrails) return;
@@ -1154,7 +1154,7 @@ public class PaintBoard extends JPanel {
         int level = trailPyramid.pickLevel(ppd);
         MappedImage img = trailPyramid.get(level); int srcPpd = trailPyramid.getPpd(level);
         double scale = ppd / (double) srcPpd;
-        double tx = (-180 - lonCenter) * ppd + W / 2.0, ty = (latCenter - 90) * ppd + H / 2.0;
+        double tx = (-180 - shituzhongxinjingdu) * ppd + W / 2.0, ty = (shituzhongxinweidu - 90) * ppd + H / 2.0;
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_SPEED);
         double panelWidthPx = 360.0 * ppd;
@@ -1174,12 +1174,12 @@ public class PaintBoard extends JPanel {
         }
     }
     private void drawWorldCanvas(Graphics2D g2, int W, int H) {
-        int level = worldPyramid.pickLevel(ppd);
-        MappedImage img = worldPyramid.get(level); int srcPpd = worldPyramid.getPpd(level);
+        int level = ditujingzita.pickLevel(ppd);
+        MappedImage img = ditujingzita.get(level); int srcPpd = ditujingzita.getPpd(level);
         double scale = ppd / (double) srcPpd;
         double panelWidthPx = 360.0 * ppd;
         int copies = computeCopies(W, panelWidthPx);
-        double tx = (-180 - lonCenter) * ppd + W / 2.0, ty = (latCenter - 90) * ppd + H / 2.0;
+        double tx = (-180 - shituzhongxinjingdu) * ppd + W / 2.0, ty = (shituzhongxinweidu - 90) * ppd + H / 2.0;
         g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, scale >= 2.0 ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR : RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         g2.setRenderingHint(RenderingHints.KEY_ALPHA_INTERPOLATION, RenderingHints.VALUE_ALPHA_INTERPOLATION_QUALITY);
         for (int k = -copies; k <= copies; k++) {
@@ -1208,13 +1208,13 @@ public class PaintBoard extends JPanel {
             dian d = dots.get(i);
             if (!d.visible || d.color == null) continue;
             if (!useCached && d.screenSpace) continue;
-            double rPx = d.radiusDeg * ppd; if (rPx < minLiveDotRadiusPx) rPx = minLiveDotRadiusPx;
+            double rPx = d.radiusDeg * ppd; if (rPx < livedianzuixiaobanjing) rPx = livedianzuixiaobanjing;
             double baseX, baseY;
             if (useCached) { baseX = d.cachedSx; baseY = d.cachedSy; }
             else {
-                double dLon = d.lon - lonCenter;
+                double dLon = d.lon - shituzhongxinjingdu;
                 dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
-                baseX = dLon * ppd + halfW; baseY = (latCenter - d.lat) * ppd + halfH;
+                baseX = dLon * ppd + halfW; baseY = (shituzhongxinweidu - d.lat) * ppd + halfH;
             }
             if (baseY + rPx < 0 || baseY - rPx > H) continue;
 
@@ -1240,13 +1240,13 @@ public class PaintBoard extends JPanel {
         }
         for (int i = 0, m = individualDotCache.size(); i < m; i++) {
             dian d = individualDotCache.get(i);
-            double rPx = d.radiusDeg * ppd; if (rPx < minLiveDotRadiusPx) rPx = minLiveDotRadiusPx;
+            double rPx = d.radiusDeg * ppd; if (rPx < livedianzuixiaobanjing) rPx = livedianzuixiaobanjing;
             double baseX, baseY;
             if (useCached) { baseX = d.cachedSx; baseY = d.cachedSy; }
             else {
-                double dLon = d.lon - lonCenter;
+                double dLon = d.lon - shituzhongxinjingdu;
                 dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
-                baseX = dLon * ppd + halfW; baseY = (latCenter - d.lat) * ppd + halfH;
+                baseX = dLon * ppd + halfW; baseY = (shituzhongxinweidu - d.lat) * ppd + halfH;
             }
             int kMin = (int) Math.ceil((-rPx - baseX) / panelWidthPx);
             int kMax = (int) Math.floor((W + rPx - baseX) / panelWidthPx);
@@ -1262,7 +1262,7 @@ public class PaintBoard extends JPanel {
                 }
                 if (d.text != null && !d.text.isEmpty()) {
                     int fs = useCached ? (int) Math.max(9, Math.min(200, rPx * 1.5)) : (d.textScale ? (int) Math.max(9, Math.min(200, rPx * 0.8)) : 12);
-                    g2.setFont(uiFont(fs)); g2.setColor(d.textColor != null ? d.textColor : Color.WHITE);
+                    g2.setFont(huoqusizedaxiaodeziti(fs)); g2.setColor(d.textColor != null ? d.textColor : Color.WHITE);
                     g2.drawString(d.text, (float) (sx + rPx + 4), (float) (baseY + fs / 3));
                 }
             }
@@ -1271,21 +1271,21 @@ public class PaintBoard extends JPanel {
     public void bakeGeoDotsOnly() { rebuildWorldCanvas(); }
 
     private void drawLiveLines(Graphics2D g2, int W, int H) {
-        if (liveLines.isEmpty()) return;
+        if (livexians.isEmpty()) return;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
         double halfW = W * 0.5, halfH = H * 0.5;
         double panelWidthPx = 360.0 * ppd;
         int copies = computeCopies(W, panelWidthPx);
-        for (int i = 0, n = liveLines.size(); i < n; i++) {
-            LiveLine L = liveLines.get(i); if (!L.visible) continue;
+        for (int i = 0, n = livexians.size(); i < n; i++) {
+            livexian L = livexians.get(i); if (!L.visible) continue;
             Color c = (L.color != null) ? L.color : Color.WHITE;
             float sw = (L.strokeWidth > 0f) ? L.strokeWidth : 1f;
             double lon2Adj = L.lon2, dd = lon2Adj - L.lon1;
             dd = ((dd + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
             lon2Adj = L.lon1 + dd;
-            double x1 = (L.lon1 - lonCenter) * ppd + halfW, y1 = (latCenter - L.lat1) * ppd + halfH;
-            double x2 = (lon2Adj - lonCenter) * ppd + halfW, y2 = (latCenter - L.lat2) * ppd + halfH;
+            double x1 = (L.lon1 - shituzhongxinjingdu) * ppd + halfW, y1 = (shituzhongxinweidu - L.lat1) * ppd + halfH;
+            double x2 = (lon2Adj - shituzhongxinjingdu) * ppd + halfW, y2 = (shituzhongxinweidu - L.lat2) * ppd + halfH;
             double minY = Math.min(y1, y2) - sw, maxY = Math.max(y1, y2) + sw;
             if (maxY < 0 || minY > H) continue;
             g2.setColor(c); g2.setStroke(new BasicStroke(sw, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
@@ -1298,14 +1298,14 @@ public class PaintBoard extends JPanel {
     }
 
     private void drawGeoTexts(Graphics2D g2, int W, int H) {
-        if (geoTexts.isEmpty()) return;
+        if (wuliwenbens.isEmpty()) return;
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_LCD_CONTRAST, 180);
         double panelWidthPx = 360.0 * ppd;
         int copies = computeCopies(W, panelWidthPx);
-        for (int ti = 0, tn = geoTexts.size(); ti < tn; ti++) {
-            GeoText t = geoTexts.get(ti);
+        for (int ti = 0, tn = wuliwenbens.size(); ti < tn; ti++) {
+            wuliwenben t = wuliwenbens.get(ti);
             if (!t.visible || t.text == null || t.text.isEmpty()) continue;
             float fs = t.baseFontSize;
             if (t.scaleWithZoom && t.basePpd > 1e-9) {
@@ -1313,7 +1313,7 @@ public class PaintBoard extends JPanel {
                 if (s < t.minScale) s = t.minScale; if (s > t.maxScale) s = t.maxScale;
                 fs = (float) (t.baseFontSize * s);
             }
-            fs = clampF(fs, MIN_SCREEN_FONT_SIZE, MAX_SCREEN_FONT_SIZE);
+            fs = clampF(fs, zuixiaopingmuziti, zuidapingmuziti);
             Font font = t.fontFor(fs); g2.setFont(font);
             if (t.cachedFm == null || t.cachedFmFont != font) { t.cachedFm = g2.getFontMetrics(font); t.cachedFmFont = font; }
             FontMetrics fm = t.cachedFm;
@@ -1336,7 +1336,7 @@ public class PaintBoard extends JPanel {
             }
         }
     }
-    private void drawTextWithOutline(Graphics2D g2, GeoText t, int x, int y) {
+    private void drawTextWithOutline(Graphics2D g2, wuliwenben t, int x, int y) {
         Font font = g2.getFont();
         FontRenderContext frc = g2.getFontRenderContext();
         TextLayout layout = new TextLayout(t.text, font, frc);
@@ -1352,20 +1352,20 @@ public class PaintBoard extends JPanel {
 
     private void drawGridOnScreen(Graphics2D g2, int W, int H) {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF);
-        g2.setStroke(STROKE_1F);
-        double lonMin = lonCenter - W / (2.0 * ppd), lonMax = lonCenter + W / (2.0 * ppd);
+        g2.setStroke(huabi);
+        double lonMin = shituzhongxinjingdu - W / (2.0 * ppd), lonMax = shituzhongxinjingdu + W / (2.0 * ppd);
         int startIdx = (int) Math.ceil(lonMin / GRID_STEP), endIdx = (int) Math.floor(lonMax / GRID_STEP);
         for (int i = startIdx; i <= endIdx; i++) {
             double lon = i * GRID_STEP;
-            int x = (int) Math.round((lon - lonCenter) * ppd + W / 2.0);
+            int x = (int) Math.round((lon - shituzhongxinjingdu) * ppd + W / 2.0);
             if (x < -1 || x > W + 1) continue;
-            g2.setColor(Math.abs(normalizeLon(lon)) < 1e-6 ? GRID_COLOR_PRIME : GRID_COLOR_NORMAL);
+            g2.setColor(Math.abs(normalizeLon(lon)) < 1e-6 ? jingxianyanse : weixianyanse);
             g2.drawLine(x, 0, x, H);
         }
         for (double lat = -90; lat <= 90 + 1e-6; lat += GRID_STEP) {
-            int y = (int) Math.round((latCenter - lat) * ppd + H / 2.0);
+            int y = (int) Math.round((shituzhongxinweidu - lat) * ppd + H / 2.0);
             if (y < -1 || y > H + 1) continue;
-            g2.setColor(Math.abs(lat) < 1e-6 ? GRID_COLOR_PRIME : GRID_COLOR_NORMAL);
+            g2.setColor(Math.abs(lat) < 1e-6 ? jingxianyanse : weixianyanse);
             g2.drawLine(0, y, W, y);
         }
     }
@@ -1377,37 +1377,37 @@ public class PaintBoard extends JPanel {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
             g.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-            g.setComposite(AlphaComposite.Clear); g.fillRect(0, 0, WORLD_W_HIGH, WORLD_H_HIGH); g.setComposite(AlphaComposite.SrcOver);
+            g.setComposite(AlphaComposite.Clear); g.fillRect(0, 0, gaofenbianlvhuancunkuan, gaofenbianlvhuancungao); g.setComposite(AlphaComposite.SrcOver);
             bakingMode = true;
-            try { for (int i = 0, n = shapes.size(); i < n; i++) shapes.get(i).paint(g, this); bakeMarkers(g); bakeGeoDots(g); }
+            try { for (int i = 0, n = minglingliebiao.size(); i < n; i++) minglingliebiao.get(i).paint(g, this); bakeMarkers(g); bakeGeoDots(g); }
             finally { bakingMode = false; }
         } finally { g.dispose(); }
-        worldPyramid.rebuildFromBase(high); worldDirty = false;
-        highBakeBuffer = null;
+        ditujingzita.rebuildFromBase(high); worldDirty = false;
+        huancungaofenbianlv = null;
     }
     private void bakeMarkers(Graphics2D g) {
         if (markers.isEmpty()) return;
         int baseSize = 12;
-        g.setFont(uiFont(Math.max(1, (int) Math.round(baseSize * WORLD_BASE_PPD / 6.0))));
+        g.setFont(huoqusizedaxiaodeziti(Math.max(1, (int) Math.round(baseSize * jichuxiangsushu / 6.0))));
         for (int i = 0, n = markers.size(); i < n; i++) {
             Marker m = markers.get(i);
             int[] p = lonLatToScreen(m.lon, m.lat);
-            int s = Math.max(1, (int) Math.round(m.size * (double) WORLD_BASE_PPD / 6.0));
+            int s = Math.max(1, (int) Math.round(m.size * (double) jichuxiangsushu / 6.0));
             g.setColor(m.color); g.fillOval(p[0] - s / 2, p[1] - s / 2, s, s);
             if (m.text != null && !m.text.isEmpty()) { g.setColor(Color.WHITE); g.drawString(m.text, p[0] + s / 2 + 4, p[1] + 5); }
         }
     }
     private void bakeGeoDots(Graphics2D g) {
-        if (geoDots.isEmpty()) return;
+        if (feiwulidianji.isEmpty()) return;
         resetBatchCache();
-        for (int i = 0, n = geoDots.size(); i < n; i++) {
-            dian d = geoDots.get(i);
+        for (int i = 0, n = feiwulidianji.size(); i < n; i++) {
+            dian d = feiwulidianji.get(i);
             if (d.screenSpace || !d.visible) continue;
             boolean simple = (d.borderWidth <= 0) && (d.text == null || d.text.isEmpty());
             if (simple && d.color != null) {
                 Path2D.Double path = pathFor(d.color);
                 int[] p = lonLatToScreen(d.lon, d.lat);
-                int r = Math.max(1, (int) Math.round(d.radiusDeg * WORLD_BASE_PPD));
+                int r = Math.max(1, (int) Math.round(d.radiusDeg * jichuxiangsushu));
                 path.append(r <= 2 ? new Rectangle2D.Double(p[0] - r, p[1] - r, r * 2.0, r * 2.0) : new Ellipse2D.Double(p[0] - r, p[1] - r, r * 2.0, r * 2.0), false);
             } else individualDotCache.add(d);
         }
@@ -1418,16 +1418,16 @@ public class PaintBoard extends JPanel {
         for (int i = 0, m = individualDotCache.size(); i < m; i++) {
             dian d = individualDotCache.get(i);
             int[] p = lonLatToScreen(d.lon, d.lat);
-            int r = Math.max(1, (int) Math.round(d.radiusDeg * WORLD_BASE_PPD));
+            int r = Math.max(1, (int) Math.round(d.radiusDeg * jichuxiangsushu));
             if (d.color != null) { g.setColor(d.color); g.fillOval(p[0] - r, p[1] - r, r * 2, r * 2); }
             if (d.borderWidth > 0) {
                 Color border = d.borderColor != null ? d.borderColor : (d.color != null ? d.color.darker() : Color.WHITE);
-                g.setColor(border); g.setStroke(strokeOf(Math.max(1f, d.borderWidth * WORLD_BASE_PPD / 6f)));
+                g.setColor(border); g.setStroke(strokeOf(Math.max(1f, d.borderWidth * jichuxiangsushu / 6f)));
                 g.drawOval(p[0] - r, p[1] - r, r * 2, r * 2);
             }
             if (d.text != null && !d.text.isEmpty()) {
-                int fs = d.textScale ? (int) Math.max(9, Math.min(200, d.radiusDeg * WORLD_BASE_PPD * 0.8)) : Math.max(1, (int) Math.round(12.0 * WORLD_BASE_PPD / 6.0));
-                g.setFont(uiFont(fs)); g.setColor(d.textColor != null ? d.textColor : Color.WHITE);
+                int fs = d.textScale ? (int) Math.max(9, Math.min(200, d.radiusDeg * jichuxiangsushu * 0.8)) : Math.max(1, (int) Math.round(12.0 * jichuxiangsushu / 6.0));
+                g.setFont(huoqusizedaxiaodeziti(fs)); g.setColor(d.textColor != null ? d.textColor : Color.WHITE);
                 g.drawString(d.text, p[0] + r + 4, p[1] + fs / 3);
             }
         }
@@ -1440,13 +1440,13 @@ public class PaintBoard extends JPanel {
     private boolean hudMouseNull = false;
     private void drawHUD(Graphics2D g2, int W, int H) {
         g2.setFont(HUD_FONT);
-        if (hudCenterStr == null || hudLastLon != lonCenter || hudLastLat != latCenter || hudLastPpd != ppd) {
-            hudLastLon = lonCenter; hudLastLat = latCenter; hudLastPpd = ppd;
-            hudCenterStr = String.format("中心  经度 %.1f 度  纬度 %.1f 度  缩放 %.2f px/度", lonCenter, latCenter, ppd);
+        if (hudCenterStr == null || hudLastLon != shituzhongxinjingdu || hudLastLat != shituzhongxinweidu || hudLastPpd != ppd) {
+            hudLastLon = shituzhongxinjingdu; hudLastLat = shituzhongxinweidu; hudLastPpd = ppd;
+            hudCenterStr = String.format("中心  经度 %.1f 度  纬度 %.1f 度  缩放 %.2f px/度", shituzhongxinjingdu, shituzhongxinweidu, ppd);
         }
         g2.setColor(HUD_COLOR_MAIN); g2.drawString(hudCenterStr, 12, 22);
         g2.setColor(HUD_COLOR_TIP); g2.drawString("左键拖拽旋转 · 滚轮缩放 · 右键框选", 12, 42);
-        MouseSnapshot s = mouseSnap;
+        shubiaojingweidu s = dangqianshubiaojingweidu;
         if (s != null) {
             if (hudMouseStr == null || hudMouseNull || hudMouseLon != s.lon || hudMouseLat != s.lat) {
                 hudMouseLon = s.lon; hudMouseLat = s.lat; hudMouseNull = false;
@@ -1469,7 +1469,7 @@ public class PaintBoard extends JPanel {
     public Color huoqux_ychuyanse(int x, int y, Color emptyColor) {
         int W = getWidth(), H = getHeight();
         if (W <= 0 || H <= 0 || x < 0 || y < 0 || x >= W || y >= H) return emptyColor;
-        double lon = lonCenter + (x - W / 2.0) / ppd, lat = latCenter - (y - H / 2.0) / ppd;
+        double lon = shituzhongxinjingdu + (x - W / 2.0) / ppd, lat = shituzhongxinweidu - (y - H / 2.0) / ppd;
         return getNonLiveColorAtLonLat(lon, lat, emptyColor);
     }
     public Color huoqux_ychuyanse(int x, int y) { return huoqux_ychuyanse(x, y, null); }

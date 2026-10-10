@@ -1,8 +1,10 @@
 package neirong.shijian;
 
 import neirong.bianliang.bingpai.bingmoshuju;
+import neirong.gongju.pingmujilei.XYBoard;
 import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
+import neirong.gongju.pingmujilei.tuodongkuang;
 import neirong.gongju.xuanranqi.PaintBoard;
 import neirong.yemian.kongzhitai.kongzhitai;
 import shijian.shijian.OnTimeChange;
@@ -14,9 +16,7 @@ import shunxu.third_shijianpaifaqiqidong.shijian.*;
 
 import java.awt.*;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -27,105 +27,133 @@ public class MyListener {
     @SubscribeEvent
     public void onJoin(beixuanze_DUOXUAN event) {
 
-        event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(event.xuanding.x,event.xuanding.y, event.xuanding.tasktogo.x,event.xuanding.tasktogo.y);
+        event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
+                event.xuanding.jingdu, event.xuanding.weidu,
+                event.xuanding.renwumubiao.x, event.xuanding.renwumubiao.y);
         event.xuanding.xianshilansebiankuang();
     }
+
     @SubscribeEvent
     public void quxiao(beiquxiao_DUOXUAN event) {
 
         board.removeLiveLine(event.xuanding.suoshulujingzhixianbianhao);
         event.xuanding.quxiaolansebiankuang();
-    }@SubscribeEvent
+    }
+
+    @SubscribeEvent
     public void onJoin_TUOXUAN(youjiankuangxuan event) {
         xuandingbianliang.add(event.xuanding);
-        System.out.println( LocalDateTime.now());
-        event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(event.xuanding.x,event.xuanding.y, event.xuanding.tasktogo.x,event.xuanding.tasktogo.y);
+
+        event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
+                event.xuanding.jingdu, event.xuanding.weidu,
+                event.xuanding.renwumubiao.x, event.xuanding.renwumubiao.y);
         event.xuanding.xianshilansebiankuang();
     }
 
-    int g=0;
+    int jishu = 0;
+
     @OnTimeChange
-    public void yizhen(Duration delta) throws InterruptedException {
+    public void yizhen(Duration shichang) throws InterruptedException {
 
-
-        // 假设 vector 里有很多元素
-        // ...
-
-        // 1. 创建固定大小的线程池（大小根据 CPU 核数或 IO 密集程度调整）
-        ExecutorService executor = Executors.newFixedThreadPool(
+        // 1. 创建固定大小的线程池
+        ExecutorService xianchengchi = Executors.newFixedThreadPool(
                 Runtime.getRuntime().availableProcessors() * 1000
         );
 
         // 2. 为每个元素创建 Callable 任务
-        List<Callable<Void>> tasks = new ArrayList<>();
-        for (country item : countries) {
-            for (BINGPAI binpai:item.jundui) {
-                tasks.add(() -> {
-                    // 这里做耗时的处理，每个元素独立
-
-                    for(int a1=0;a1!=delta.getSeconds();a1++) {
-                        binpai.tick();
+        List<Callable<Void>> renwuLie = new ArrayList<>();
+        for (country guojiaXiang : countries) {
+            for (BINGPAI bingpai : guojiaXiang.jundui) {
+                renwuLie.add(() -> {
+                    for (int a1 = 0; a1 != shichang.getSeconds(); a1++) {
+                        bingpai.tick();
                     }
-
                     return null;
                 });
             }
         }
 
-        // 3. 提交所有任务，并等待全部完成（invokeAll 会阻塞直到所有任务结束）
-        List<Future<Void>> futures = executor.invokeAll(tasks);
+        // 3. 提交所有任务，并等待全部完成
+        List<Future<Void>> jieguoLie = xianchengchi.invokeAll(renwuLie);
 
-        // 4. 可选：检查是否有任务抛出异常
-        for (Future<Void> f : futures) {
+        // 4. 检查是否有任务抛出异常
+        for (Future<Void> weiLai : jieguoLie) {
             try {
-                f.get(); // 如果任务有异常，这里会抛出 ExecutionException
-            } catch (ExecutionException e) {
-                e.printStackTrace();
+                weiLai.get();
+            } catch (ExecutionException yichang) {
+                yichang.printStackTrace();
             }
         }
 
         // 5. 关闭线程池
-        executor.shutdown();
+        xianchengchi.shutdown();
 
-
-        g+=delta.getSeconds();
-        countries.get(0).shoudu.name= String.valueOf(g);
-
+        jishu += shichang.getSeconds();
+        countries.get(0).shoudu.name = String.valueOf(jishu);
     }
+
     @SubscribeEvent
     public void youjianyidong(youjiandianji_DUOXUAN event) {
-        event.xuanding.goto_(new zuobiao(event.gotox,event.gotoy));
+        event.xuanding.goto_(new zuobiao(event.gotox, event.gotoy));
 
         board.removeLiveLine(event.xuanding.suoshulujingzhixianbianhao);
 
-        event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(event.xuanding.x,event.xuanding.y, event.xuanding.tasktogo.x,event.xuanding.tasktogo.y);
-
-
-
+        event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
+                event.xuanding.jingdu, event.xuanding.weidu,
+                event.xuanding.renwumubiao.x, event.xuanding.renwumubiao.y);
     }
-    @SubscribeEvent
-    public void kongzhitaijianting(kongzhitaifasong neirong){
 
-        if(Objects.equals(neirong.zhiling[0], "summon")){
-            System.out.println(neirong.zhiling[0]);
-            PaintBoard.MouseSnapshot a= board.mouseSnap;
-            if(board.mouseSnap==null){
-                BINGPAI bingpai=new BINGPAI((Image) null,10,"a",0,0, bianliang.countries.get(0),new bingmoshuju(300),Color.yellow);
+    @SubscribeEvent
+    public void kongzhitaijianting(kongzhitaifasong neirong) {
+
+        if (Objects.equals(neirong.zhiling[0], "summon")) {
+
+            PaintBoard.shubiaojingweidu kuaizhao = board.dangqianshubiaojingweidu;
+            if (board.dangqianshubiaojingweidu == null) {
+                BINGPAI bingpai = new BINGPAI((Image) null, 10, "a", 0, 0,
+                        bianliang.countries.get(0), new bingmoshuju(300, 0.1), Color.yellow);
 
                 bianliang.countries.get(0).jundui.add(bingpai);
                 bingpai.xianshi();
-                neirong.returnwenzi= "0";
-            }        }
+                neirong.returnwenzi = "0";
+            }
+        } else if (Objects.equals(neirong.zhiling[0], "国策页面")) {
+            XYBoard sub = new XYBoard(320, 220);
+            // 可选：画点东西，不然就是纯黑一块
+            sub.setBackground(new Color(30, 30, 36));
+            sub.setWorldPainter((g2, b) -> {
+                g2.setColor(new Color(200, 200, 200));
+                double[] p = b.worldToScreen(0, 0);
+                g2.fillOval((int) p[0] - 5, (int) p[1] - 5, 10, 10);
+            });
+            sub.setBounds(40, 40, 320, 220);
+            gongju.tanchuyemian(new tuodongkuang(sub),10,10);        // 默认 BorderLayout.CENTER，会占满
+
+
+
+
+// 挂到北京
+     //       gongju.tanchuyemian(sub);
+            neirong.returnwenzi = "0";
+        }
     }
+
     @SubscribeEvent
-    public void kongzhitai(anjian anjian){
+    public void kongzhitai(anjian anjian) {
 
-        if(anjian.getANJIAN().contains("后引号")&&anjian.getANJIAN().contains("Shift")){
-            System.out.println(anjian.getANJIAN());
-
+        if (anjian.getANJIAN().contains("后引号") && anjian.getANJIAN().contains("Shift")) {
 
             kongzhitai.kai();
-
         }
+    }
+    @SubscribeEvent
+    public void jiantinggongji(gongji gongji){
+        BINGPAI a=gongji.getgongjizhe(),b=gongji.getbeigongjizhe();
+        b.shuju.gongjizhe.add(a);
+        b.shuju.gongjizhe.add(a);
+        a.kapianyanse = Color.CYAN;
+        a.addNumber(-1);
+        b.kapianyanse = Color.BLACK;
+        b.addNumber(-1);
     }
 }

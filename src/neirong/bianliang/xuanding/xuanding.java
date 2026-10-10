@@ -39,7 +39,7 @@ public class xuanding<T> {
 
         // 1. 判重：已经存在就不添加
         if (contains(a)) {
-            System.out.println("已存在，忽略：" + a);
+
             return false;
         }
 
@@ -49,8 +49,7 @@ public class xuanding<T> {
             lockedType = a.getClass();
         } else if (!lockedType.isInstance(a)) {
             // 类型不符 → 拒绝
-            System.out.println("类型不符，已拒绝：" + a.getClass().getSimpleName()
-                    + "，当前只能选：" + lockedType.getSimpleName());
+
             return false;
         }
 

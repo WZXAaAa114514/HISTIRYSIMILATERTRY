@@ -96,8 +96,12 @@ public class shijian {
         // 数据一致性校验
 
         List<chengshi> chengshiList  = new ArrayList<>(CITY_NAMES.length);
-        a.add(new china());
-        a.add(new qing());
+        china china=new china();
+        qing q=new qing();
+        china.gongjizhe.add(q);
+        q.gongjizhe.add(china);
+        a.add(china);
+        a.add(q);
         for (int i = 0; i < CITY_NAMES.length; i++) {
             final String cityName = CITY_NAMES[i];
             final double lon = CITY_LONS[i];
@@ -116,7 +120,7 @@ public class shijian {
             btn.setFocusable(false);
             btn.addActionListener(e ->
                     JOptionPane.showMessageDialog(board, "点击了：" + cityName));
-            a.get(0).jundui.add(new BINGPAI((Image) null,10,"a",lon,lat,a.get(0),new bingmoshuju(300),Color.yellow));
+            q.jundui.add(new BINGPAI((Image) null,10,"a",lon,lat,q,new bingmoshuju(300,0.3),Color.yellow));
             chengshiList.add(new chengshi(zb, btn, cityName));
         }
         chengshis=chengshiList;

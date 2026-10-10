@@ -7,6 +7,7 @@ import neirong.gongju.xuanranqi.PaintBoard;
 import shunxu.third_shijianpaifaqiqidong.EventBus;
 
 import javax.swing.*;
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Vector;
@@ -20,4 +21,6 @@ public class bianliang {
     public static List<chengshi> chengshis=new ArrayList<>();
     public static final int BUTTON_W = 8;
     public static final int BUTTON_H = 6;
+    public static country PLAYCOUNTRY;
+    public static JPanel zhuyemian=new JPanel(new BorderLayout());
 }

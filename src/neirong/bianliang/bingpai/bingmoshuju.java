@@ -6,11 +6,12 @@ import java.util.Vector;
 
 public class bingmoshuju {
     public double speed;
-    public bingmoshuju(double speed){
-        this.speed=speed;
+    public bingmoshuju(double speed,double fanwei){
+        this.speed=speed;this.fanwei=fanwei;
     }
     public List<BINGPAI> gongjizhe=new ArrayList<>();
-
+    public double fanwei;
+    public int zhudongxing=10;
     /**
      * 去重添加攻击者。
      *

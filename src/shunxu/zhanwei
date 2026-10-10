@@ -1,6 +1,0 @@
-System.out.println(jingdu+" "+weidu);
-        for(country country:country.gongjizhe){
-            for(BINGPAI bingpai:country.jundui){
-
-            }
-        }

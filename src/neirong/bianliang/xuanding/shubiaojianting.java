@@ -18,11 +18,11 @@ public class shubiaojianting {
      * 把一个经度差归一化到 [-180, 180)。
      * 与 PaintBoard.normalizeLon 保持一致。
      */
-    private static double normalizeLon(double lon) {
-        lon = lon % 360.0;
-        if (lon >= 180.0)  lon -= 360.0;
-        if (lon < -180.0) lon += 360.0;
-        return lon;
+    private static double guifanhuaJingdu(double jingdu) {
+        jingdu = jingdu % 360.0;
+        if (jingdu >= 180.0) jingdu -= 360.0;
+        if (jingdu < -180.0) jingdu += 360.0;
+        return jingdu;
     }
 
     /**
@@ -32,17 +32,17 @@ public class shubiaojianting {
      *   y = (latCenter - lat) * ppd + height / 2
      * ★ 经度差做环绕归一化，跨 ±180° 时也正确。
      */
-    private static double[] lonLatToScreenPoint(double lon, double lat) {
-        double lonCenter = board.getLonCenter();
-        double latCenter = board.getLatCenter();
-        double ppd       = board.getZoom();
-        double halfW     = board.getWidth()  / 2.0;
-        double halfH     = board.getHeight() / 2.0;
+    private static double[] jingweiZhuanPingmuZuobiao(double jingdu, double weidu) {
+        double jingduZhongxin = board.getShituzhongxinjingdu();
+        double weiduZhongxin = board.getShituzhongxinweidu();
+        double meiduXiangsu = board.getZoom();
+        double bangeKuan = board.getWidth() / 2.0;
+        double bangeGao = board.getHeight() / 2.0;
 
-        double dLon = normalizeLon(lon - lonCenter);
-        double sx   = dLon * ppd + halfW;
-        double sy   = (latCenter - lat) * ppd + halfH;
-        return new double[]{ sx, sy };
+        double dJingdu = guifanhuaJingdu(jingdu - jingduZhongxin);
+        double pingmuX = dJingdu * meiduXiangsu + bangeKuan;
+        double pingmuY = (weiduZhongxin - weidu) * meiduXiangsu + bangeGao;
+        return new double[]{pingmuX, pingmuY};
     }
 
     public static void kaishijianting() {
@@ -50,16 +50,16 @@ public class shubiaojianting {
         // ============================================================
         // 监听器 1：左键点击 → 取消多选
         // ============================================================
-        Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
-            if (!(event instanceof MouseEvent)) return;
-            MouseEvent me = (MouseEvent) event;
+        Toolkit.getDefaultToolkit().addAWTEventListener(shijian -> {
+            if (!(shijian instanceof MouseEvent)) return;
+            MouseEvent shubiaoShijian = (MouseEvent) shijian;
 
-            if (me.getID() != MouseEvent.MOUSE_CLICKED) return;
-            if (me.getButton() != MouseEvent.BUTTON1) return;
+            if (shubiaoShijian.getID() != MouseEvent.MOUSE_CLICKED) return;
+            if (shubiaoShijian.getButton() != MouseEvent.BUTTON1) return;
 
-            if (board.mouseSnap != null && !xuandingbianliang.neirong.isEmpty()) {
-                for (Object a : xuandingbianliang.neirong) {
-                    EVENTMAIN.post(new beiquxiao_DUOXUAN((BINGPAI) a));
+            if (board.dangqianshubiaojingweidu != null && !xuandingbianliang.neirong.isEmpty()) {
+                for (Object duixiang : xuandingbianliang.neirong) {
+                    EVENTMAIN.post(new beiquxiao_DUOXUAN((BINGPAI) duixiang));
                 }
                 xuandingbianliang.neirong.clear();
             }
@@ -68,108 +68,101 @@ public class shubiaojianting {
         // ============================================================
         // 监听器 2：右键点击 → 触发多选对象的右键操作
         // ============================================================
-        Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
-            if (!(event instanceof MouseEvent)) return;
-            MouseEvent me = (MouseEvent) event;
+        Toolkit.getDefaultToolkit().addAWTEventListener(shijian -> {
+            if (!(shijian instanceof MouseEvent)) return;
+            MouseEvent shubiaoShijian = (MouseEvent) shijian;
 
-            if (me.getID() != MouseEvent.MOUSE_CLICKED) return;
-            if (!SwingUtilities.isRightMouseButton(me)) return;
+            if (shubiaoShijian.getID() != MouseEvent.MOUSE_CLICKED) return;
+            if (!SwingUtilities.isRightMouseButton(shubiaoShijian)) return;
 
-            double[] ll = board.shibiaojingweidu();
-            if (ll == null) return;
+            double[] jingwei = board.shibiaojingweidu();
+            if (jingwei == null) return;
 
-            for (Object a : xuandingbianliang.neirong) {
+            for (Object duixiang : xuandingbianliang.neirong) {
                 EVENTMAIN.post(new youjiandianji_DUOXUAN(
-                        (BINGPAI) a, ll[0], ll[1]));
+                        (BINGPAI) duixiang, jingwei[0], jingwei[1]));
             }
-            System.out.println("右键点击");
+
         }, AWTEvent.MOUSE_EVENT_MASK);
 
         // ============================================================
         // 监听器 3：右键拖拽 → 框选
         // ============================================================
-        Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
-            if (!(event instanceof MouseEvent)) return;
-            MouseEvent me = (MouseEvent) event;
+        Toolkit.getDefaultToolkit().addAWTEventListener(shijian -> {
+            if (!(shijian instanceof MouseEvent)) return;
+            MouseEvent shubiaoShijian = (MouseEvent) shijian;
 
-            switch (me.getID()) {
+            switch (shubiaoShijian.getID()) {
 
                 // ① 右键按下 → 开始框选
                 case MouseEvent.MOUSE_PRESSED: {
-                    if (!SwingUtilities.isRightMouseButton(me)) break;
+                    if (!SwingUtilities.isRightMouseButton(shubiaoShijian)) break;
 
-                    Component src = me.getComponent();
-                    if (src == null) break;
+                    Component laiyuan = shubiaoShijian.getComponent();
+                    if (laiyuan == null) break;
 
-                    Point p = SwingUtilities.convertPoint(
-                            src, me.getX(), me.getY(), board);
+                    Point dian = SwingUtilities.convertPoint(
+                            laiyuan, shubiaoShijian.getX(), shubiaoShijian.getY(), board);
 
-                    if (board.contains(p)) {
-                        board.beginSelection(p.x, p.y);
+                    if (board.contains(dian)) {
+                        board.kaishikuangxuan(dian.x, dian.y);
                     }
                     break;
                 }
 
                 // ② 拖动 → 更新框
                 case MouseEvent.MOUSE_DRAGGED: {
-                    if ((me.getModifiersEx() & MouseEvent.BUTTON3_DOWN_MASK) == 0) break;
-                    if (!board.isSelectionActive()) break;
+                    if ((shubiaoShijian.getModifiersEx() & MouseEvent.BUTTON3_DOWN_MASK) == 0) break;
+                    if (!board.isShifouzhengzaikuangxuan()) break;
 
-                    Component src = me.getComponent();
-                    if (src == null) break;
+                    Component laiyuan = shubiaoShijian.getComponent();
+                    if (laiyuan == null) break;
 
-                    Point p = SwingUtilities.convertPoint(
-                            src, me.getX(), me.getY(), board);
-                    board.updateSelection(p.x, p.y);
+                    Point dian = SwingUtilities.convertPoint(
+                            laiyuan, shubiaoShijian.getX(), shubiaoShijian.getY(), board);
+                    board.gengxinkuangxuan(dian.x, dian.y);
                     break;
                 }
 
                 // ③ 右键松开 → 结束框选
                 case MouseEvent.MOUSE_RELEASED: {
-                    if (!board.isSelectionActive()) break;
+                    if (!board.isShifouzhengzaikuangxuan()) break;
 
-                    Rectangle sel = board.endSelection();
-                    if (sel == null) break;
+                    Rectangle xuanqu = board.jieshukuangxuan();
+                    if (xuanqu == null) break;
 
-                    System.out.println("右键框选区域: " + sel);
+
 
                     // ============================================================
                     // 打印经纬度范围（仅供调试/显示）
                     // ============================================================
-                    double[] tl = board.screenToLonLat(sel.x, sel.y);
-                    double[] br = board.screenToLonLat(
-                            sel.x + sel.width, sel.y + sel.height);
+                    double[] zuoshang = board.screenToLonLat(xuanqu.x, xuanqu.y);
+                    double[] youxia = board.screenToLonLat(
+                            xuanqu.x + xuanqu.width, xuanqu.y + xuanqu.height);
 
-                    System.out.printf(
-                            "经纬度范围: lon[%.3f, %.3f]  lat[%.3f, %.3f]%n",
-                            Math.min(tl[0], br[0]), Math.max(tl[0], br[0]),
-                            Math.min(tl[1], br[1]), Math.max(tl[1], br[1]));
+
 
                     // ============================================================
                     // ★ 核心：用「屏幕坐标」判断每个 binpai 是否落在框内
-                    //   不再用经纬度范围 min/max，避免经度环绕（±180°）问题，
-                    //   也避免负半轴不生效的问题。
                     // ============================================================
                     xuandingbianliang.clearall();
 
-                    for (country c : countries) {
-                        for (BINGPAI binpai : c.jundui) {
-                            // 把 binpai 的经纬度换算到当前屏幕上的位置
-                            double[] sp = lonLatToScreenPoint(binpai.x, binpai.y);
-                            double sx = sp[0];
-                            double sy = sp[1];
+                    for (country guojia : countries) {
+                        for (BINGPAI bingpai : guojia.jundui) {
+                            // 把 bingpai 的经纬度换算到当前屏幕上的位置
+                            double[] pingmuDian = jingweiZhuanPingmuZuobiao(
+                                    bingpai.jingdu, bingpai.weidu);
+                            double pingmuX = pingmuDian[0];
+                            double pingmuY = pingmuDian[1];
 
                             // 直接判断屏幕坐标是否在框内
-                            if (sel.contains(sx, sy)) {
-                                EVENTMAIN.post(new youjiankuangxuan(binpai));
+                            if (xuanqu.contains(pingmuX, pingmuY)) {
+                                EVENTMAIN.post(new youjiankuangxuan(bingpai));
                             }
                         }
                     }
 
-                    System.out.printf(
-                            "经纬度范围: lon[%.3f, %.3f]  lat[%.3f, %.3f]%n",
-                            Math.min(tl[0], br[0]), Math.max(tl[0], br[0]),
-                            Math.min(tl[1], br[1]), Math.max(tl[1], br[1]));
+
                     break;
                 }
             }

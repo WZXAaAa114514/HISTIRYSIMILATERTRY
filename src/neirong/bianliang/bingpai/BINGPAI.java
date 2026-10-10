@@ -3,11 +3,11 @@ package neirong.bianliang.bingpai;
 import neirong.bianliang.guojia.country;
 import neirong.bianliang.xuanding.canchosemany;
 import neirong.bianliang.zuobiao.zuobiao;
-import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
 import neirong.gongju.xuanranqi.PaintBoard;
 import neirong.gongju.zhujie.Live;
 import shunxu.third_shijianpaifaqiqidong.shijian.beixuanze_DUOXUAN;
+import shunxu.third_shijianpaifaqiqidong.shijian.gongji;
 
 import javax.swing.*;
 import java.awt.*;
@@ -23,508 +23,519 @@ import static neirong.gongju.bianliang.*;
 public class BINGPAI extends JButton implements canchosemany {
 
     /* ==================== 设计基准（5:2 宽高比） ==================== */
-    private static final int BASE_W = 100;
-    private static final int BASE_H = 40;
+    private static final int JICHU_KUAN = 100;
+    private static final int JICHU_GAO = 40;
 
     /* ==================== 默认配色 ==================== */
-    private static final Color DEFAULT_CARD_COLOR    = new Color(0x5B6B3D);
-    private static final Color DEFAULT_BORDER_COLOR  = new Color(0xD8C58A);
-    private static final Color DEFAULT_NUMBER_COLOR  = Color.WHITE;
-    private static final Color DEFAULT_SUBTEXT_COLOR = new Color(0xF0E6C0);
+    private static final Color MOREN_KAPIANYANSE    = new Color(0x5B6B3D);
+    private static final Color MOREN_BIANKUANGYANSE = new Color(0xD8C58A);
+    private static final Color MOREN_SHUZIYANSE     = Color.WHITE;
+    private static final Color MOREN_FUWENBENYANSE  = new Color(0xF0E6C0);
 
     /* ==================== 整体缩放控制变量 ==================== */
-    private double uiScale = 0.1;
+    private double jiemianSuofang = 0.1;
 
-    @Live(Live.Role.LON) public double x;
-    @Live(Live.Role.LAT) public double y;
+    @Live(Live.Role.LON) public double jingdu;
+    @Live(Live.Role.LAT) public double weidu;
     public int bianhao;
 
     /* ==================== 数据字段 ==================== */
-    private Image  icon;
-    private int    number        = 0;
-    private String subText       = "";
-    private Color  cardColor     = DEFAULT_CARD_COLOR;
-    private Color  borderColor   = DEFAULT_BORDER_COLOR;
-    private Color  numberColor   = DEFAULT_NUMBER_COLOR;
-    private Color  subTextColor  = DEFAULT_SUBTEXT_COLOR;
-    private double moralePercent = 1.0;
-    private boolean selected      = false;
-    private boolean showMoraleBar = true;
-    private Font   numberFont     = new Font("Arial", Font.BOLD, 20);
-    private Font   subTextFont    = new Font("Arial", Font.PLAIN, 8);
-    public country country;
+    private Image  tubiao;
+    private int    shuliang      = 0;
+    private String fuwenben      = "";
+    public Color  kapianyanse   = MOREN_KAPIANYANSE;
+    private Color  biankuangyanse = MOREN_BIANKUANGYANSE;
+    private Color  shuziyanse    = MOREN_SHUZIYANSE;
+    private Color  fuwenbenyanse = MOREN_FUWENBENYANSE;
+    private double shiqibaifenbi = 1.0;
+    private boolean yixuanzhong  = false;
+    private boolean xianshiShiqitiao = true;
+    private Font   shuziZiti     = new Font("Arial", Font.BOLD, 20);
+    private Font   fuwenbenZiti  = new Font("Arial", Font.PLAIN, 8);
+    public country guojia;
     public bingmoshuju shuju;
-    public zuobiao tasktogo = new zuobiao(0, 0);
+    public zuobiao renwumubiao = new zuobiao(0, 0);
     public int suoshulujingzhixianbianhao;
 
     /* ==================== 蓝色加粗边框高亮 ==================== */
-    private boolean blueBoldBorder = false;
-    private Color   blueBoldColor  = new Color(0x1E90FF);
-    private float   blueBoldFactor = 1.8f;
+    private boolean lanseCubiankuang = false;
+    private Color   lanseCubiankuangYanse = new Color(0x1E90FF);
+    private float   lanseCubiankuangBeishu = 1.8f;
 
     /* ==================== 轨迹相关 ==================== */
-    private float trailWidth = 0f;
-    private double trailDotRadius = 0.005d;
-    private boolean trailEnabled = true;
-    private double trailMinScreenPx = 3.0;
-    private double lastTrailLon;
-    private double lastTrailLat;
-    private boolean trailInitialized = false;
-    private transient PaintBoard.dian myDot;
-    private boolean showCurrentDot = true;
+    private float guijiKuandu = 0f;
+    private double guijiDianBanjing = 0.005d;
+    private boolean guijiQiyong = true;
+    private double guijiZuixiaoPingmuXiangsu = 3.0;
+    private double shangciGuijiJingdu;
+    private double shangciGuijiWeidu;
+    private boolean guijiChushihua = false;
+    private transient PaintBoard.dian wodeDian;
+    private boolean xianshiDangqianDian = true;
 
-    public float getTrailWidth() { return trailWidth; }
-    public void setTrailWidth(float w) { this.trailWidth = w; }
+    public float getTrailWidth() { return guijiKuandu; }
+    public void setTrailWidth(float kuandu) { this.guijiKuandu = kuandu; }
 
-    public double getTrailDotRadius() { return trailDotRadius; }
-    public void setTrailDotRadius(double r) { if (r > 0) this.trailDotRadius = r; }
-
-    public boolean isTrailEnabled() { return trailEnabled; }
-    public void setTrailEnabled(boolean on) { this.trailEnabled = on; }
-
-    public double getTrailMinScreenPx() { return trailMinScreenPx; }
-    public void setTrailMinScreenPx(double px) {
-        if (px > 0.5) this.trailMinScreenPx = px;
+    public double getTrailDotRadius() { return guijiDianBanjing; }
+    public void setTrailDotRadius(double banjing) {
+        if (banjing > 0) this.guijiDianBanjing = banjing;
     }
 
-    public boolean isShowCurrentDot() { return showCurrentDot; }
-    public void setShowCurrentDot(boolean on) {
-        this.showCurrentDot = on;
-        if (!on && myDot != null) {
-            board.removeGeoDot(myDot);
-            myDot = null;
+    public boolean isTrailEnabled() { return guijiQiyong; }
+    public void setTrailEnabled(boolean qiyong) { this.guijiQiyong = qiyong; }
+
+    public double getTrailMinScreenPx() { return guijiZuixiaoPingmuXiangsu; }
+    public void setTrailMinScreenPx(double xiangsu) {
+        if (xiangsu > 0.5) this.guijiZuixiaoPingmuXiangsu = xiangsu;
+    }
+
+    public boolean isShowCurrentDot() { return xianshiDangqianDian; }
+    public void setShowCurrentDot(boolean qiyong) {
+        this.xianshiDangqianDian = qiyong;
+        if (!qiyong && wodeDian != null) {
+            board.removeGeoDot(wodeDian);
+            wodeDian = null;
         }
     }
 
     private float computeTrailWidthPx() {
-        if (trailWidth > 0f) return trailWidth;
-        double zoom = board.getZoom();
-        if (!(zoom > 0)) return 1.5f;
-        return (float) Math.max(1.5d, trailDotRadius * zoom * 2.0d);
+        if (guijiKuandu > 0f) return guijiKuandu;
+        double suofang = board.getZoom();
+        if (!(suofang > 0)) return 1.5f;
+        return (float) Math.max(1.5d, guijiDianBanjing * suofang * 2.0d);
     }
 
     /* ============================================================
      *  ★ 高频 tick 优化：累加步数 + 时间窗口一次性执行
      * ============================================================ */
-    private final AtomicInteger pendingTickCount = new AtomicInteger(0);
-    private volatile long lastFlushNanos = 0L;
-    private volatile long tickFlushWindowNanos = 4_000_000L; // 4ms，约 250Hz
+    private final AtomicInteger daichuliZhenShu = new AtomicInteger(0);
+    private volatile long shangciShuaxinNamia = 0L;
+    private volatile long zhenShuaxinChuangkouNamia = 4_000_000L; // 4ms，约 250Hz
 
-    public void setTickFlushWindowMillis(long ms) {
-        tickFlushWindowNanos = Math.max(0L, ms) * 1_000_000L;
+    public void setTickFlushWindowMillis(long haomiao) {
+        zhenShuaxinChuangkouNamia = Math.max(0L, haomiao) * 1_000_000L;
     }
 
     public void tick() {
-        pendingTickCount.incrementAndGet();
+        daichuliZhenShu.incrementAndGet();
 
-        long now = System.nanoTime();
-        if (now - lastFlushNanos < tickFlushWindowNanos) return;
-        lastFlushNanos = now;
+        long xianzai = System.nanoTime();
 
-        int steps = pendingTickCount.getAndSet(0);
-        if (steps <= 0) return;
+        shangciShuaxinNamia = xianzai;
 
+        int bushu = daichuliZhenShu.getAndSet(0);
+        if (bushu <= 0) return;
+        double jingdu = this.jingdu;
+        double weidu = this.weidu;
         try {
-            goto_MEIYIZHENZHIXING(steps);
+            goto_MEIYIZHENZHIXING(bushu);
             syncCurrentDot();
         } catch (Throwable t) {
             // 单帧异常不影响后续帧
         }
+        tick_go(jingdu, weidu, this.jingdu, this.weidu);
     }
 
     /* ============================================================
      *  ★ 每帧单步执行：自动捕获 goto_MEIYIZHENZHIXING 前后的位置
      * ============================================================ */
-    /**
-     * 每一帧调用一次。
-     * 内部自动记录移动前位置 (a, b) 和移动后位置 (x, y)，
-     * 并调用带参版本 tick_go(a, b, x, y) 以便扩展处理。
-     */
-    public void tick_go() {
-        // ① 记录移动前位置
-        double a = this.x;
-        double b = this.y;
-
-        // ② 执行单步移动（内部包含轨迹段记录、路径点采样等）
-        goto_MEIYIZHENZHIXING(1);
-
-        // ③ 记录移动后位置
-        double x = this.x;
-        double y = this.y;
-
-        // ④ 交给带参版本处理位置变化
-        tick_go(a, b, x, y);
-
-        // ⑤ 同步当前位置点（显示光点）
-        syncCurrentDot();
-    }
 
     /**
      * 处理一次位置变化。
      * 默认留空，因为轨迹段与路径点已在 goto_MEIYIZHENZHIXING 内部处理。
      * 如需在此处扩展逻辑（如记录位移、触发事件等），可重写或修改此方法。
      *
-     * @param a 移动前经度
-     * @param b 移动前纬度
-     * @param x 移动后经度
-     * @param y 移动后纬度
+     * @param aJingdu 移动前经度
+     * @param aWeidu 移动前纬度
+     * @param bJingdu 移动后经度
+     * @param bWeidu 移动后纬度
      */
-    public static boolean a_blianx_ybanjingsizekanx1_y1shifouzaikuangnei(double a, double b, double x, double y, double x1, double y1, double size) {
+    public static boolean a_blianx_ybanjingsizekanx1_y1shifouzaikuangnei(
+            double aJingdu, double aWeidu,
+            double bJingdu, double bWeidu,
+            double dianJingdu, double dianWeidu,
+            double banjing) {
         // 向量 AB
-        double abX = x - a;
-        double abY = y - b;
+        double abJingdu = bJingdu - aJingdu;
+        double abWeidu = bWeidu - aWeidu;
         // 向量 AP
-        double apX = x1 - a;
-        double apY = y1 - b;
+        double apJingdu = dianJingdu - aJingdu;
+        double apWeidu = dianWeidu - aWeidu;
 
         // 点积
-        double dot = apX * abX + apY * abY;
+        double dianji = apJingdu * abJingdu + apWeidu * abWeidu;
         // 如果点积 <=0，离A点最近，判断到A点距离
-        if (dot <= 0) {
-            double distSq = apX * apX + apY * apY;
-            return distSq <= size * size;
+        if (dianji <= 0) {
+            double juliPingfang = apJingdu * apJingdu + apWeidu * apWeidu;
+            return juliPingfang <= banjing * banjing;
         }
 
         // AB长度平方
-        double abLenSq = abX * abX + abY * abY;
+        double abChangduPingfang = abJingdu * abJingdu + abWeidu * abWeidu;
         // 投影超过B点，判断到B点距离
-        if (dot >= abLenSq) {
-            double bpX = x1 - x;
-            double bpY = y1 - y;
-            double distSq = bpX * bpX + bpY * bpY;
-            return distSq <= size * size;
+        if (dianji >= abChangduPingfang) {
+            double bpJingdu = dianJingdu - bJingdu;
+            double bpWeidu = dianWeidu - bWeidu;
+            double juliPingfang = bpJingdu * bpJingdu + bpWeidu * bpWeidu;
+            return juliPingfang <= banjing * banjing;
         }
 
         // 在线段中间区域：点到线段距离
-        double dist = Math.abs(abX * apY - abY * apX) / Math.sqrt(abLenSq);
-        return dist <= size;
+        double juli = Math.abs(abJingdu * apWeidu - abWeidu * apJingdu)
+                / Math.sqrt(abChangduPingfang);
+        return juli <= banjing;
     }
-    public void tick_go(double a, double b, double x, double y) {
-        for (country country1:this.country.gongjizhe){
-            for (BINGPAI bingpai:country1.jundui){
-                if(a_blianx_ybanjingsizekanx1_y1shifouzaikuangnei(a,b,x,y,bingpai.x,bingpai.y,0.005)){
-                    bingpai.shuju.gongjizhe.add(this);
-                    this.shuju.gongjizhe.add(bingpai);
-                //todo
+
+    public void tick_go(double qianJingdu, double qianWeidu,
+                        double houJingdu, double houWeidu) {
+        for (country guojia1 : this.guojia.gongjizhe) {
+            for (BINGPAI bingpai : guojia1.jundui) {
+
+                if (a_blianx_ybanjingsizekanx1_y1shifouzaikuangnei(
+                        qianJingdu, qianWeidu, houJingdu, houWeidu,
+                        bingpai.jingdu, bingpai.weidu, shuju.fanwei)) {
+//                    bingpai.shuju.gongjizhe.add(this);
+//                    this.shuju.gongjizhe.add(bingpai);
+//                    bingpai.kapianyanse = Color.BLACK;
+//                    bingpai.addNumber(-1);
+//                    this.kapianyanse = Color.BLACK;
+//                    this.addNumber(-1);
+                    if(bingpai.shuju.zhudongxing>this.shuju.zhudongxing) EVENTMAIN.post(new gongji(this,bingpai));
+                    else  EVENTMAIN.post(new gongji(bingpai,this));
+                }
             }
         }
     }
 
-
     /* ============================================================
      *  ★ 构造函数
      * ============================================================ */
-    public BINGPAI(Image icon,
-                   int number,
-                   String subText,
-                   double x,
-                   double y,
-                   country country,
-                   bingmoshuju bingmoshuju,
-                   Color cardColor) {
-        this.icon        = icon;
-        this.country     = country;
-        this.number      = number;
-        this.shuju = bingmoshuju;
-        this.subText     = subText == null ? "" : subText;
-        this.cardColor   = cardColor == null ? DEFAULT_CARD_COLOR : cardColor;
+    public BINGPAI(Image tubiao,
+                   int shuliang,
+                   String fuwenben,
+                   double jingdu,
+                   double weidu,
+                   country guojia,
+                   bingmoshuju shuju,
+                   Color kapianyanse) {
+        this.tubiao      = tubiao;
+        this.guojia      = guojia;
+        this.shuliang    = shuliang;
+        this.shuju       = shuju;
+        this.fuwenben    = fuwenben == null ? "" : fuwenben;
+        this.kapianyanse = kapianyanse == null ? MOREN_KAPIANYANSE : kapianyanse;
 
-        super.setBackground(this.cardColor);
-        super.setForeground(this.numberColor);
+        super.setBackground(this.kapianyanse);
+        super.setForeground(this.shuziyanse);
 
         setContentAreaFilled(false);
         setBorderPainted(false);
         setFocusPainted(false);
         setOpaque(false);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        this.x = x;
-        this.y = y;
-        this.tasktogo.x = x;
-        this.tasktogo.y = y;
 
-        this.lastTrailLon = x;
-        this.lastTrailLat = y;
-        this.trailInitialized = true;
+        this.jingdu = jingdu;
+        this.weidu  = weidu;
+        this.renwumubiao.x = jingdu;
+        this.renwumubiao.y = weidu;
+
+        this.shangciGuijiJingdu = jingdu;
+        this.shangciGuijiWeidu  = weidu;
+        this.guijiChushihua = true;
         this.setTrailDotRadius(0.02d);
         applyScale();
     }
 
-    public BINGPAI(Image icon, int number, double x, double y,
-                   country country, bingmoshuju bingmoshuju, Color cardColor) {
-        this(icon, number, "", x, y, country, bingmoshuju, cardColor);
+    public BINGPAI(Image tubiao, int shuliang, double jingdu, double weidu,
+                   country guojia, bingmoshuju shuju, Color kapianyanse) {
+        this(tubiao, shuliang, "", jingdu, weidu, guojia, shuju, kapianyanse);
     }
 
-    public BINGPAI(ImageIcon icon, int number, String subText, double x, double y,
-                   country country, bingmoshuju bingmoshuju, Color cardColor) {
-        this(icon == null ? null : icon.getImage(), number, subText,
-                x, y, country, bingmoshuju, cardColor);
+    public BINGPAI(ImageIcon tubiao, int shuliang, String fuwenben,
+                   double jingdu, double weidu,
+                   country guojia, bingmoshuju shuju, Color kapianyanse) {
+        this(tubiao == null ? null : tubiao.getImage(), shuliang, fuwenben,
+                jingdu, weidu, guojia, shuju, kapianyanse);
     }
 
-    public BINGPAI(Image icon, int number, double x, double y,
-                   country country, bingmoshuju bingmoshuju) {
-        this(icon, number, "", x, y, country, bingmoshuju, DEFAULT_CARD_COLOR);
+    public BINGPAI(Image tubiao, int shuliang, double jingdu, double weidu,
+                   country guojia, bingmoshuju shuju) {
+        this(tubiao, shuliang, "", jingdu, weidu, guojia, shuju, MOREN_KAPIANYANSE);
     }
 
-    public BINGPAI(Image icon, int number, String subText, double x, double y,
-                   country country, bingmoshuju bingmoshuju) {
-        this(icon, number, subText, x, y, country, bingmoshuju, DEFAULT_CARD_COLOR);
+    public BINGPAI(Image tubiao, int shuliang, String fuwenben,
+                   double jingdu, double weidu,
+                   country guojia, bingmoshuju shuju) {
+        this(tubiao, shuliang, fuwenben, jingdu, weidu, guojia, shuju, MOREN_KAPIANYANSE);
     }
 
-    public BINGPAI(ImageIcon icon, int number, String subText, double x, double y,
-                   country country, bingmoshuju bingmoshuju) {
-        this(icon == null ? null : icon.getImage(), number, subText,
-                x, y, country, bingmoshuju, DEFAULT_CARD_COLOR);
+    public BINGPAI(ImageIcon tubiao, int shuliang, String fuwenben,
+                   double jingdu, double weidu,
+                   country guojia, bingmoshuju shuju) {
+        this(tubiao == null ? null : tubiao.getImage(), shuliang, fuwenben,
+                jingdu, weidu, guojia, shuju, MOREN_KAPIANYANSE);
     }
 
     /* ==================== 缩放控制 ==================== */
-    public double getUiScale() { return uiScale; }
+    public double getUiScale() { return jiemianSuofang; }
 
-    public void setUiScale(double uiScale) {
-        this.uiScale = Math.max(0.05, uiScale);
+    public void setUiScale(double suofang) {
+        this.jiemianSuofang = Math.max(0.05, suofang);
         applyScale();
     }
 
     private void applyScale() {
-        int w = Math.max(1, (int) Math.round(BASE_W * uiScale));
-        int h = Math.max(1, (int) Math.round(BASE_H * uiScale));
-        Dimension d = new Dimension(w, h);
-        setPreferredSize(d);
-        setSize(d);
+        int kuan = Math.max(1, (int) Math.round(JICHU_KUAN * jiemianSuofang));
+        int gao  = Math.max(1, (int) Math.round(JICHU_GAO * jiemianSuofang));
+        Dimension chicun = new Dimension(kuan, gao);
+        setPreferredSize(chicun);
+        setSize(chicun);
         revalidate();
     }
 
     /* ==================== get / set ==================== */
-    public Image getIconImage() { return icon; }
-    public void setIconImage(Image icon) { this.icon = icon; }
+    public Image getIconImage() { return tubiao; }
+    public void setIconImage(Image tubiao) { this.tubiao = tubiao; }
 
-    public int getNumber() { return number; }
-    public void setNumber(int number) { this.number = number; }
-    public void addNumber(int delta) { setNumber(this.number + delta); }
+    public int getNumber() { return shuliang; }
+    public void setNumber(int shuliang) { this.shuliang = shuliang; }
+    public void addNumber(int zengliang) { setNumber(this.shuliang + zengliang); }
 
-    public String getSubText() { return subText; }
-    public void setSubText(String subText) {
-        this.subText = subText == null ? "" : subText;
+    public String getSubText() { return fuwenben; }
+    public void setSubText(String fuwenben) {
+        this.fuwenben = fuwenben == null ? "" : fuwenben;
     }
 
-    public Color getCardColor() { return cardColor; }
+    public Color getCardColor() { return kapianyanse; }
 
-    public void setCardColor(Color cardColor) {
-        this.cardColor = cardColor == null ? DEFAULT_CARD_COLOR : cardColor;
-        super.setBackground(this.cardColor);
+    public void setCardColor(Color kapianyanse) {
+        this.kapianyanse = kapianyanse == null ? MOREN_KAPIANYANSE : kapianyanse;
+        super.setBackground(this.kapianyanse);
     }
 
-    public void setColor(Color color) { setCardColor(color); }
-    public void setColor(int argb) { setCardColor(new Color(argb, true)); }
-    public Color getColor() { return cardColor; }
+    public void setColor(Color yanse) { setCardColor(yanse); }
+    public void setColor(int yansezhi) { setCardColor(new Color(yansezhi, true)); }
+    public Color getColor() { return kapianyanse; }
 
-    public Color getBorderColor() { return borderColor; }
-    public void setBorderColor(Color borderColor) {
-        this.borderColor = borderColor == null ? DEFAULT_BORDER_COLOR : borderColor;
+    public Color getBorderColor() { return biankuangyanse; }
+    public void setBorderColor(Color biankuangyanse) {
+        this.biankuangyanse = biankuangyanse == null
+                ? MOREN_BIANKUANGYANSE : biankuangyanse;
     }
 
-    public Color getNumberColor() { return numberColor; }
-    public void setNumberColor(Color numberColor) {
-        this.numberColor = numberColor == null ? DEFAULT_NUMBER_COLOR : numberColor;
-        super.setForeground(this.numberColor);
+    public Color getNumberColor() { return shuziyanse; }
+    public void setNumberColor(Color shuziyanse) {
+        this.shuziyanse = shuziyanse == null ? MOREN_SHUZIYANSE : shuziyanse;
+        super.setForeground(this.shuziyanse);
     }
 
-    public Color getSubTextColor() { return subTextColor; }
-    public void setSubTextColor(Color subTextColor) {
-        this.subTextColor = subTextColor == null ? DEFAULT_SUBTEXT_COLOR : subTextColor;
+    public Color getSubTextColor() { return fuwenbenyanse; }
+    public void setSubTextColor(Color fuwenbenyanse) {
+        this.fuwenbenyanse = fuwenbenyanse == null
+                ? MOREN_FUWENBENYANSE : fuwenbenyanse;
     }
 
-    public void setColors(Color card, Color border, Color number, Color subText) {
-        if (card    != null) this.cardColor    = card;
-        if (border  != null) this.borderColor  = border;
-        if (number  != null) this.numberColor  = number;
-        if (subText != null) this.subTextColor = subText;
-        super.setBackground(this.cardColor);
-        super.setForeground(this.numberColor);
+    public void setColors(Color kapian, Color biankuang,
+                          Color shuzi, Color fuwenben) {
+        if (kapian    != null) this.kapianyanse   = kapian;
+        if (biankuang != null) this.biankuangyanse = biankuang;
+        if (shuzi     != null) this.shuziyanse     = shuzi;
+        if (fuwenben  != null) this.fuwenbenyanse  = fuwenben;
+        super.setBackground(this.kapianyanse);
+        super.setForeground(this.shuziyanse);
     }
 
     public void autoNumberColor() {
-        double lum = (0.299 * cardColor.getRed()
-                + 0.587 * cardColor.getGreen()
-                + 0.114 * cardColor.getBlue()) / 255.0;
-        setNumberColor(lum > 0.6 ? new Color(0x1A1A1A) : Color.WHITE);
+        double liangdu = (0.299 * kapianyanse.getRed()
+                + 0.587 * kapianyanse.getGreen()
+                + 0.114 * kapianyanse.getBlue()) / 255.0;
+        setNumberColor(liangdu > 0.6 ? new Color(0x1A1A1A) : Color.WHITE);
     }
 
     @Override
-    public void setBackground(Color bg) {
-        super.setBackground(bg);
-        this.cardColor = (bg == null) ? DEFAULT_CARD_COLOR : bg;
+    public void setBackground(Color beijingyanse) {
+        super.setBackground(beijingyanse);
+        this.kapianyanse = (beijingyanse == null)
+                ? MOREN_KAPIANYANSE : beijingyanse;
     }
 
     @Override
-    public Color getBackground() { return cardColor; }
+    public Color getBackground() { return kapianyanse; }
 
     @Override
-    public void setForeground(Color fg) {
-        super.setForeground(fg);
-        if (fg != null) {
-            this.numberColor = fg;
+    public void setForeground(Color qianjingyanse) {
+        super.setForeground(qianjingyanse);
+        if (qianjingyanse != null) {
+            this.shuziyanse = qianjingyanse;
         }
     }
 
     @Override
-    public Color getForeground() { return numberColor; }
+    public Color getForeground() { return shuziyanse; }
 
-    public double getMoralePercent() { return moralePercent; }
-    public void setMoralePercent(double moralePercent) {
-        this.moralePercent = Math.max(0.0, Math.min(1.0, moralePercent));
+    public double getMoralePercent() { return shiqibaifenbi; }
+    public void zuzhidu(double shiqibaifenbi) {
+        this.shiqibaifenbi = Math.max(0.0, Math.min(1.0, shiqibaifenbi));
     }
 
-    public boolean isSelected() { return selected; }
-    @Override public void setSelected(boolean selected) {
-        this.selected = selected;
+    public boolean isSelected() { return yixuanzhong; }
+    @Override public void setSelected(boolean yixuanzhong) {
+        this.yixuanzhong = yixuanzhong;
     }
 
-    public boolean isShowMoraleBar() { return showMoraleBar; }
-    public void setShowMoraleBar(boolean showMoraleBar) {
-        this.showMoraleBar = showMoraleBar;
+    public boolean isShowMoraleBar() { return xianshiShiqitiao; }
+    public void setShowMoraleBar(boolean xianshiShiqitiao) {
+        this.xianshiShiqitiao = xianshiShiqitiao;
     }
 
-    public Font getNumberFont() { return numberFont; }
-    public void setNumberFont(Font numberFont) {
-        if (numberFont != null) { this.numberFont = numberFont; }
+    public Font getNumberFont() { return shuziZiti; }
+    public void setNumberFont(Font shuziZiti) {
+        if (shuziZiti != null) { this.shuziZiti = shuziZiti; }
     }
 
-    public Font getSubTextFont() { return subTextFont; }
-    public void setSubTextFont(Font subTextFont) {
-        if (subTextFont != null) { this.subTextFont = subTextFont; }
+    public Font getSubTextFont() { return fuwenbenZiti; }
+    public void setSubTextFont(Font fuwenbenZiti) {
+        if (fuwenbenZiti != null) { this.fuwenbenZiti = fuwenbenZiti; }
     }
 
-    public void setCardSize(int width, int height) {
-        double s = Math.min(width  / (double) BASE_W,
-                height / (double) BASE_H);
-        setUiScale(s);
+    public void setCardSize(int kuan, int gao) {
+        double suofang = Math.min(kuan / (double) JICHU_KUAN,
+                gao / (double) JICHU_GAO);
+        setUiScale(suofang);
     }
 
     /* ==================== 蓝色加粗边框 控制 ==================== */
     public void xianshilansebiankuang() {
-        this.blueBoldBorder = true;
+        this.lanseCubiankuang = true;
     }
 
     public void quxiaolansebiankuang() {
-        this.blueBoldBorder = false;
+        this.lanseCubiankuang = false;
     }
 
-    public void setBlueBoldBorder(boolean on) {
-        this.blueBoldBorder = on;
+    public void setBlueBoldBorder(boolean qiyong) {
+        this.lanseCubiankuang = qiyong;
     }
 
-    public boolean isBlueBoldBorder() { return blueBoldBorder; }
+    public boolean isBlueBoldBorder() { return lanseCubiankuang; }
 
-    public Color getBlueBoldColor() { return blueBoldColor; }
-    public void setBlueBoldColor(Color c) {
-        if (c != null) { this.blueBoldColor = c; }
+    public Color getBlueBoldColor() { return lanseCubiankuangYanse; }
+    public void setBlueBoldColor(Color yanse) {
+        if (yanse != null) { this.lanseCubiankuangYanse = yanse; }
     }
 
-    public float getBlueBoldFactor() { return blueBoldFactor; }
-    public void setBlueBoldFactor(float f) {
-        if (f > 0f) { this.blueBoldFactor = f; }
+    public float getBlueBoldFactor() { return lanseCubiankuangBeishu; }
+    public void setBlueBoldFactor(float beishu) {
+        if (beishu > 0f) { this.lanseCubiankuangBeishu = beishu; }
     }
 
     /* ==================== 绘制 ==================== */
     @Override
-    protected void paintComponent(Graphics g) {
-        Graphics2D g2 = (Graphics2D) g.create();
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+    protected void paintComponent(Graphics tuxing) {
+        Graphics2D tuxing2 = (Graphics2D) tuxing.create();
+        tuxing2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
                 RenderingHints.VALUE_ANTIALIAS_ON);
-        g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
+        tuxing2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
                 RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        int w = getWidth();
-        int h = getHeight();
-        if (w <= 0 || h <= 0) { g2.dispose(); return; }
+        int kuan = getWidth();
+        int gao  = getHeight();
+        if (kuan <= 0 || gao <= 0) { tuxing2.dispose(); return; }
 
-        Color base = cardColor;
-        if (getModel().isPressed())       base = base.darker();
-        else if (getModel().isRollover()) base = base.brighter();
-        g2.setColor(base);
-        g2.fillRect(0, 0, w, h);
+        Color jichu = kapianyanse;
+        if (getModel().isPressed())       jichu = jichu.darker();
+        else if (getModel().isRollover()) jichu = jichu.brighter();
+        tuxing2.setColor(jichu);
+        tuxing2.fillRect(0, 0, kuan, gao);
 
-        float s = Math.min(w / (float) BASE_W, h / (float) BASE_H);
+        float suofang = Math.min(kuan / (float) JICHU_KUAN,
+                gao / (float) JICHU_GAO);
 
-        float drawW = BASE_W * s;
-        float drawH = BASE_H * s;
+        float huizhiKuan = JICHU_KUAN * suofang;
+        float huizhiGao  = JICHU_GAO * suofang;
 
-        float ox = (w - drawW) / 2f;
-        float oy = (h - drawH) / 2f;
-        g2.translate(ox, oy);
+        float pianyiHeng = (kuan - huizhiKuan) / 2f;
+        float pianyiZong = (gao - huizhiGao) / 2f;
+        tuxing2.translate(pianyiHeng, pianyiZong);
 
-        int rw = Math.round(drawW);
-        int rh = Math.round(drawH);
-        int px1 = Math.max(1, Math.round(1 * s));
+        int juxingKuan = Math.round(huizhiKuan);
+        int juxingGao  = Math.round(huizhiGao);
+        int xiangsu1   = Math.max(1, Math.round(1 * suofang));
 
-        float strokeW     = Math.max(1f, (selected ? 3f : 2f) * s);
-        Color strokeColor = selected ? Color.YELLOW : borderColor;
+        float huaxianKuandu = Math.max(1f, (yixuanzhong ? 3f : 2f) * suofang);
+        Color huaxianYanse  = yixuanzhong ? Color.YELLOW : biankuangyanse;
 
-        if (blueBoldBorder) {
-            strokeW     = Math.max(1f, strokeW * blueBoldFactor);
-            strokeColor = blueBoldColor;
+        if (lanseCubiankuang) {
+            huaxianKuandu = Math.max(1f, huaxianKuandu * lanseCubiankuangBeishu);
+            huaxianYanse  = lanseCubiankuangYanse;
         }
 
-        int inset = Math.max(1, Math.round(strokeW / 2f));
-        g2.setColor(strokeColor);
-        g2.setStroke(new BasicStroke(strokeW));
-        g2.drawRect(inset, inset,
-                Math.max(1, rw - inset * 2 - 1),
-                Math.max(1, rh - inset * 2 - 1));
+        int neisuo = Math.max(1, Math.round(huaxianKuandu / 2f));
+        tuxing2.setColor(huaxianYanse);
+        tuxing2.setStroke(new BasicStroke(huaxianKuandu));
+        tuxing2.drawRect(neisuo, neisuo,
+                Math.max(1, juxingKuan - neisuo * 2 - 1),
+                Math.max(1, juxingGao - neisuo * 2 - 1));
 
-        if (icon != null) {
-            int ix = Math.round(6 * s);
-            int iy = Math.round(8 * s);
-            int iw = Math.max(4, Math.round(30 * s));
-            int ih = Math.max(3, Math.round(20 * s));
-            g2.drawImage(icon, ix, iy, iw, ih, this);
-            g2.setColor(new Color(0x00000055));
-            g2.setStroke(new BasicStroke(Math.max(1f, s)));
-            g2.drawRect(ix, iy, iw - px1, ih - px1);
+        if (tubiao != null) {
+            int tubiaoHeng = Math.round(6 * suofang);
+            int tubiaoZong = Math.round(8 * suofang);
+            int tubiaoKuan = Math.max(4, Math.round(30 * suofang));
+            int tubiaoGao  = Math.max(3, Math.round(20 * suofang));
+            tuxing2.drawImage(tubiao, tubiaoHeng, tubiaoZong,
+                    tubiaoKuan, tubiaoGao, this);
+            tuxing2.setColor(new Color(0x00000055));
+            tuxing2.setStroke(new BasicStroke(Math.max(1f, suofang)));
+            tuxing2.drawRect(tubiaoHeng, tubiaoZong,
+                    tubiaoKuan - xiangsu1, tubiaoGao - xiangsu1);
         }
 
-        String numStr = String.valueOf(number);
-        g2.setFont(numberFont.deriveFont(numberFont.getSize2D() * s));
-        FontMetrics fm = g2.getFontMetrics();
-        int tw = fm.stringWidth(numStr);
-        int tx = Math.round((drawW - tw) / 2f);
-        int ty = Math.round(drawH / 2f + (fm.getAscent() - fm.getDescent()) / 2f);
+        String shuziZiFu = String.valueOf(shuliang);
+        tuxing2.setFont(shuziZiti.deriveFont(shuziZiti.getSize2D() * suofang));
+        FontMetrics zitiDuliang = tuxing2.getFontMetrics();
+        int wenziKuan = zitiDuliang.stringWidth(shuziZiFu);
+        int wenziHeng = Math.round((huizhiKuan - wenziKuan) / 2f);
+        int wenziZong = Math.round(huizhiGao / 2f
+                + (zitiDuliang.getAscent() - zitiDuliang.getDescent()) / 2f);
 
-        g2.setColor(new Color(0, 0, 0, 160));
-        g2.drawString(numStr, tx + px1, ty + px1);
-        g2.setColor(numberColor);
-        g2.drawString(numStr, tx, ty);
+        tuxing2.setColor(new Color(0, 0, 0, 160));
+        tuxing2.drawString(shuziZiFu, wenziHeng + xiangsu1, wenziZong + xiangsu1);
+        tuxing2.setColor(shuziyanse);
+        tuxing2.drawString(shuziZiFu, wenziHeng, wenziZong);
 
-        if (subText != null && !subText.isEmpty()) {
-            g2.setFont(subTextFont.deriveFont(subTextFont.getSize2D() * s));
-            FontMetrics fm2 = g2.getFontMetrics();
-            int sw = fm2.stringWidth(subText);
-            int margin = Math.round(6 * s);
-            g2.setColor(subTextColor);
-            g2.drawString(subText, rw - sw - margin, rh - margin);
+        if (fuwenben != null && !fuwenben.isEmpty()) {
+            tuxing2.setFont(fuwenbenZiti.deriveFont(
+                    fuwenbenZiti.getSize2D() * suofang));
+            FontMetrics fuwenbenDuliang = tuxing2.getFontMetrics();
+            int fuwenbenKuan = fuwenbenDuliang.stringWidth(fuwenben);
+            int bianju = Math.round(6 * suofang);
+            tuxing2.setColor(fuwenbenyanse);
+            tuxing2.drawString(fuwenben,
+                    juxingKuan - fuwenbenKuan - bianju,
+                    juxingGao - bianju);
         }
 
-        if (showMoraleBar) {
-            int margin = Math.round(6 * s);
-            int barH   = Math.max(1, Math.round(4 * s));
-            int fullW  = Math.max(1, rw - margin * 2);
-            int barW   = (int) (fullW * moralePercent);
-            int by     = rh - barH - margin;
+        if (xianshiShiqitiao) {
+            int bianju = Math.round(6 * suofang);
+            int tiaoGao = Math.max(1, Math.round(4 * suofang));
+            int mantiaoKuan = Math.max(1, juxingKuan - bianju * 2);
+            int tiaoKuan = (int) (mantiaoKuan * shiqibaifenbi);
+            int tiaoZong = juxingGao - tiaoGao - bianju;
 
-            g2.setColor(new Color(0x00000088));
-            g2.fillRect(margin, by, fullW, barH);
+            tuxing2.setColor(new Color(0x00000088));
+            tuxing2.fillRect(bianju, tiaoZong, mantiaoKuan, tiaoGao);
 
-            g2.setColor(barColorFor(moralePercent));
-            g2.fillRect(margin, by, barW, barH);
+            tuxing2.setColor(barColorFor(shiqibaifenbi));
+            tuxing2.fillRect(bianju, tiaoZong, tiaoKuan, tiaoGao);
         }
 
-        g2.dispose();
+        tuxing2.dispose();
     }
 
-    private static Color barColorFor(double p) {
-        if (p < 0.33)      return new Color(0xD9534F);
-        else if (p < 0.66) return new Color(0xE8B33B);
-        else               return new Color(0x6FBF4A);
+    private static Color barColorFor(double baifenbi) {
+        if (baifenbi < 0.33)      return new Color(0xD9534F);
+        else if (baifenbi < 0.66) return new Color(0xE8B33B);
+        else                      return new Color(0x6FBF4A);
     }
 
     @Override
@@ -533,8 +544,8 @@ public class BINGPAI extends JButton implements canchosemany {
         return this;
     }
 
-    public void goto_(zuobiao zuobiao){
-        this.tasktogo = zuobiao;
+    public void goto_(zuobiao mubiao) {
+        this.renwumubiao = mubiao;
     }
 
     /* ============================================================
@@ -544,141 +555,170 @@ public class BINGPAI extends JButton implements canchosemany {
         goto_MEIYIZHENZHIXING(1);
     }
 
-    public void goto_MEIYIZHENZHIXING(int steps) {
-        if (tasktogo == null || shuju == null || steps <= 0) return;
+    public void goto_MEIYIZHENZHIXING(int bushu) {
+        if (renwumubiao == null || shuju == null || bushu <= 0) return;
 
-        if (!trailInitialized) {
-            lastTrailLon = this.x;
-            lastTrailLat = this.y;
-            trailInitialized = true;
+        if (!guijiChushihua) {
+            shangciGuijiJingdu = this.jingdu;
+            shangciGuijiWeidu  = this.weidu;
+            guijiChushihua = true;
         }
 
-        double lon1 = this.x;
-        double lat1 = this.y;
-        double lon2 = tasktogo.x;
-        double lat2 = tasktogo.y;
+        double jingdu1 = this.jingdu;
+        double weidu1  = this.weidu;
+        double jingdu2 = renwumubiao.x;
+        double weidu2  = renwumubiao.y;
 
-        double dLon = lon2 - lon1;
-        dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
-        double dLat = lat2 - lat1;
+        double dJingdu = jingdu2 - jingdu1;
+        dJingdu = ((dJingdu + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+        double dWeidu = weidu2 - weidu1;
 
-        if (dLon == 0.0 && dLat == 0.0) {
+        if (dJingdu == 0.0 && dWeidu == 0.0) {
             flushTrailToCurrent();
             syncCurrentDot();
             return;
         }
 
-        double latAvg = (lat1 + lat2) * 0.5;
-        double cosLat = Math.cos(Math.toRadians(latAvg));
+        double pingjunWeidu = (weidu1 + weidu2) * 0.5;
+        double cosWeidu = Math.cos(Math.toRadians(pingjunWeidu));
 
-        final double KM_PER_DEG = 111.32;
-        double dLatKm = dLat * KM_PER_DEG;
-        double dLonKm = dLon * KM_PER_DEG * cosLat;
-        double distKm = Math.sqrt(dLatKm * dLatKm + dLonKm * dLonKm);
+        final double MEIDU_QIANMI = 111.32;
+        double dWeiduQianmi = dWeidu * MEIDU_QIANMI;
+        double dJingduQianmi = dJingdu * MEIDU_QIANMI * cosWeidu;
+        double juliQianmi = Math.sqrt(
+                dWeiduQianmi * dWeiduQianmi
+                        + dJingduQianmi * dJingduQianmi);
 
-        double speed = shuju.speed / 3600.0 * steps;
+        double sudu = shuju.speed / 3600.0 * bushu;
 
-        if (speed <= 0.0 || distKm <= speed) {
-            this.x = lon1 + dLon;
-            this.y = lat2;
+        if (sudu <= 0.0 || juliQianmi <= sudu) {
+            this.jingdu = jingdu1 + dJingdu;
+            this.weidu  = weidu2;
         } else {
-            double t = speed / distKm;
-            this.x = lon1 + t * dLon;
-            this.y = lat1 + t * dLat;
+            double bili = sudu / juliQianmi;
+            this.jingdu = jingdu1 + bili * dJingdu;
+            this.weidu  = weidu1 + bili * dWeidu;
         }
 
         maybeAddTrailSegment();
     }
 
     private void maybeAddTrailSegment() {
-        if (!trailEnabled) return;
+        if (!guijiQiyong) return;
 
-        double ppd = board.getZoom();
-        if (!(ppd > 0)) return;
+        double meiduXiangsu = board.getZoom();
+        if (!(meiduXiangsu > 0)) return;
 
-        double dxPx = Math.abs(this.x - lastTrailLon) * ppd;
-        double dyPx = Math.abs(this.y - lastTrailLat) * ppd;
-        double distPx = Math.sqrt(dxPx * dxPx + dyPx * dyPx);
+        double dxXiangsu = Math.abs(this.jingdu - shangciGuijiJingdu)
+                * meiduXiangsu;
+        double dyXiangsu = Math.abs(this.weidu - shangciGuijiWeidu)
+                * meiduXiangsu;
+        double juliXiangsu = Math.sqrt(
+                dxXiangsu * dxXiangsu + dyXiangsu * dyXiangsu);
 
-        float wPx = computeTrailWidthPx();
-        double stepPx = Math.max(trailMinScreenPx, wPx * 0.5d);
+        float kuanduXiangsu = computeTrailWidthPx();
+        double buchangXiangsu = Math.max(
+                guijiZuixiaoPingmuXiangsu, kuanduXiangsu * 0.5d);
 
-        if (distPx >= stepPx) {
-            double sx1 = lastTrailLon, sy1 = lastTrailLat;
-            double sx2 = this.x, sy2 = this.y;
-            board.addTrailSegment(this, sx1, sy1, sx2, sy2, this.cardColor, wPx);
-            recordPathPoints(sx1, sy1, sx2, sy2);
-            lastTrailLon = this.x;
-            lastTrailLat = this.y;
+        if (juliXiangsu >= buchangXiangsu) {
+            double qishiJingdu = shangciGuijiJingdu;
+            double qishiWeidu  = shangciGuijiWeidu;
+            double jieshuJingdu = this.jingdu;
+            double jieshuWeidu  = this.weidu;
+
+            board.addTrailSegment(this,
+                    qishiJingdu, qishiWeidu,
+                    jieshuJingdu, jieshuWeidu,
+                    this.kapianyanse, kuanduXiangsu);
+            recordPathPoints(qishiJingdu, qishiWeidu,
+                    jieshuJingdu, jieshuWeidu);
+
+            shangciGuijiJingdu = this.jingdu;
+            shangciGuijiWeidu  = this.weidu;
         }
     }
 
     private void flushTrailToCurrent() {
-        if (!trailEnabled || !trailInitialized) return;
-        if (lastTrailLon == this.x && lastTrailLat == this.y) return;
+        if (!guijiQiyong || !guijiChushihua) return;
+        if (shangciGuijiJingdu == this.jingdu
+                && shangciGuijiWeidu == this.weidu) return;
 
-        double sx1 = lastTrailLon, sy1 = lastTrailLat;
-        double sx2 = this.x, sy2 = this.y;
-        board.addTrailSegment(this, sx1, sy1, sx2, sy2,
-                this.cardColor, computeTrailWidthPx());
-        recordPathPoints(sx1, sy1, sx2, sy2);
-        lastTrailLon = this.x;
-        lastTrailLat = this.y;
+        double qishiJingdu = shangciGuijiJingdu;
+        double qishiWeidu  = shangciGuijiWeidu;
+        double jieshuJingdu = this.jingdu;
+        double jieshuWeidu  = this.weidu;
+
+        board.addTrailSegment(this,
+                qishiJingdu, qishiWeidu,
+                jieshuJingdu, jieshuWeidu,
+                this.kapianyanse, computeTrailWidthPx());
+        recordPathPoints(qishiJingdu, qishiWeidu,
+                jieshuJingdu, jieshuWeidu);
+
+        shangciGuijiJingdu = this.jingdu;
+        shangciGuijiWeidu  = this.weidu;
     }
 
-    private double lastSyncedDotLon = Double.NaN;
-    private double lastSyncedDotLat = Double.NaN;
+    private double shangciTongbuDianJingdu = Double.NaN;
+    private double shangciTongbuDianWeidu  = Double.NaN;
 
     private void syncCurrentDot() {
-        if (!showCurrentDot) return;
+        if (!xianshiDangqianDian) return;
 
-        if (myDot == null) {
-            myDot = board.addGeoDotLive(this.x, this.y,
-                    trailDotRadius, this.cardColor);
-            lastSyncedDotLon = this.x;
-            lastSyncedDotLat = this.y;
+        if (wodeDian == null) {
+            wodeDian = board.addGeoDotLive(
+                    this.jingdu, this.weidu,
+                    guijiDianBanjing, this.kapianyanse);
+            shangciTongbuDianJingdu = this.jingdu;
+            shangciTongbuDianWeidu  = this.weidu;
             board.bumpLiveDotsVersion();
             return;
         }
 
-        if (this.x == lastSyncedDotLon
-                && this.y == lastSyncedDotLat) return;
+        if (this.jingdu == shangciTongbuDianJingdu
+                && this.weidu == shangciTongbuDianWeidu) return;
 
-        myDot.lon = this.x;
-        myDot.lat = this.y;
-        myDot.color = this.cardColor;
-        lastSyncedDotLon = this.x;
-        lastSyncedDotLat = this.y;
+        wodeDian.lon = this.jingdu;
+        wodeDian.lat = this.weidu;
+        wodeDian.color = this.kapianyanse;
+
+        shangciTongbuDianJingdu = this.jingdu;
+        shangciTongbuDianWeidu  = this.weidu;
         board.bumpLiveDotsVersion();
     }
 
     public void dispose() {
-        if (myDot != null) {
-            board.removeGeoDot(myDot);
-            myDot = null;
+        if (wodeDian != null) {
+            board.removeGeoDot(wodeDian);
+            wodeDian = null;
         }
         if (board != null) {
             board.removeOwnerTrails(this);
         }
     }
 
-    public void xianshi(){
-        BINGPAI b = this;
-        b = (BINGPAI) gongju.quchuquanbujiantingqi(b);
-        b.bianhao = board.addAutoComponent(b, b);
-        BINGPAI finalB2 = b;
-        BINGPAI finalB = b;
-        b.addActionListener(e -> {
+    public void xianshi() {
+        BINGPAI bingpai = this;
+        bingpai = (BINGPAI) gongju.quchuquanbujiantingqi(bingpai);
+        bingpai.bianhao = board.addAutoComponent(bingpai, bingpai);
+
+        BINGPAI zuizhongBingpai2 = bingpai;
+        BINGPAI zuizhongBingpai  = bingpai;
+
+        bingpai.addActionListener(shijian -> {
             try {
-                Boolean succeed = true;
-                if (gongju.shiftdown()) succeed = xuandingbianliang.add(finalB2);
-                else {
+                Boolean chenggong = true;
+                if (gongju.shiftdown()) {
+                    chenggong = xuandingbianliang.add(zuizhongBingpai2);
+                } else {
                     xuandingbianliang.clearall();
-                    succeed = xuandingbianliang.add(finalB2);
+                    chenggong = xuandingbianliang.add(zuizhongBingpai2);
                 }
-                if (succeed) EVENTMAIN.post(new beixuanze_DUOXUAN(finalB));
-            } catch (Exception ex) {
-                throw new RuntimeException(ex);
+                if (chenggong) {
+                    EVENTMAIN.post(new beixuanze_DUOXUAN(zuizhongBingpai));
+                }
+            } catch (Exception yichang) {
+                throw new RuntimeException(yichang);
             }
         });
     }
@@ -689,47 +729,53 @@ public class BINGPAI extends JButton implements canchosemany {
     public List<zuobiao> suozouzuobiao =
             Collections.synchronizedList(new ArrayList<>());
 
-    private final Set<Long> suozouzuobiaoKeys = ConcurrentHashMap.newKeySet();
+    private final Set<Long> suozouzuobiaojian = ConcurrentHashMap.newKeySet();
 
     public void clearSuozouzuobiao() {
         synchronized (suozouzuobiao) {
             suozouzuobiao.clear();
-            suozouzuobiaoKeys.clear();
+            suozouzuobiaojian.clear();
         }
     }
 
     /** 轨迹路径采样步长（度），约 2km。 */
-    private static final double TRAIL_SAMPLE_STEP_DEG = 0.02;
+    private static final double GUIJI_CAIYANG_BUSHENG_DU = 0.02;
 
-    private void addPathPoint(double lon, double lat) {
-        lon = ((lon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
-        if (lat < -90.0) lat = -90.0;
-        else if (lat > 90.0) lat = 90.0;
+    private void addPathPoint(double jingdu, double weidu) {
+        jingdu = ((jingdu + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+        if (weidu < -90.0) weidu = -90.0;
+        else if (weidu > 90.0) weidu = 90.0;
 
-        long key = Double.doubleToLongBits(lon) * 31L
-                + Double.doubleToLongBits(lat);
-        if (suozouzuobiaoKeys.add(key)) {
+        long jian = Double.doubleToLongBits(jingdu) * 31L
+                + Double.doubleToLongBits(weidu);
+        if (suozouzuobiaojian.add(jian)) {
             zuobiao z = new zuobiao(0, 0);
-            z.x = lon; z.y = lat;
+            z.x = jingdu;
+            z.y = weidu;
             suozouzuobiao.add(z);
         }
     }
 
-    private void recordPathPoints(double lon1, double lat1,
-                                  double lon2, double lat2) {
-        double dLon = lon2 - lon1;
-        dLon = ((dLon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
-        double dLat = lat2 - lat1;
-        double distDeg = Math.sqrt(dLon * dLon + dLat * dLat);
-        if (distDeg < 1e-9) {
-            addPathPoint(lon1, lat1);
+    private void recordPathPoints(double jingdu1, double weidu1,
+                                  double jingdu2, double weidu2) {
+        double dJingdu = jingdu2 - jingdu1;
+        dJingdu = ((dJingdu + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;
+        double dWeidu = weidu2 - weidu1;
+        double juliDu = Math.sqrt(dJingdu * dJingdu + dWeidu * dWeidu);
+
+        if (juliDu < 1e-9) {
+            addPathPoint(jingdu1, weidu1);
             return;
         }
-        int steps = Math.max(1, (int) Math.ceil(distDeg / TRAIL_SAMPLE_STEP_DEG));
-        if (steps > 512) steps = 512;
-        for (int i = 0; i <= steps; i++) {
-            double t = (double) i / steps;
-            addPathPoint(lon1 + t * dLon, lat1 + t * dLat);
+
+        int bushu = Math.max(1,
+                (int) Math.ceil(juliDu / GUIJI_CAIYANG_BUSHENG_DU));
+        if (bushu > 512) bushu = 512;
+
+        for (int i = 0; i <= bushu; i++) {
+            double bili = (double) i / bushu;
+            addPathPoint(jingdu1 + bili * dJingdu,
+                    weidu1 + bili * dWeidu);
         }
     }
 }

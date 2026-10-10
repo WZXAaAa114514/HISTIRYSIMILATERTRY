@@ -17,7 +17,7 @@ public final class LiveBinder {
 
     private LiveBinder() {}
 
-    public static PaintBoard.Source toSource(Object target) {
+    public static PaintBoard.zidonggengxinhuitiao toSource(Object target) {
         if (target == null) throw new IllegalArgumentException("target == null");
 
         Map<Live.Role, Accessor> map = new EnumMap<>(Live.Role.class);
@@ -43,7 +43,7 @@ public final class LiveBinder {
             clazz = clazz.getSuperclass();
         }
 
-        return new PaintBoard.Source() {
+        return new PaintBoard.zidonggengxinhuitiao() {
             @Override public double getLon() {
                 return readDouble(Live.Role.LON, map, target, 0);
             }
