@@ -29,7 +29,7 @@ public class MyListener {
 
         event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
                 event.xuanding.jingdu, event.xuanding.weidu,
-                event.xuanding.renwumubiao.x, event.xuanding.renwumubiao.y);
+                event.xuanding.tasktogo.x, event.xuanding.tasktogo.y);
         event.xuanding.xianshilansebiankuang();
     }
 
@@ -46,7 +46,7 @@ public class MyListener {
 
         event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
                 event.xuanding.jingdu, event.xuanding.weidu,
-                event.xuanding.renwumubiao.x, event.xuanding.renwumubiao.y);
+                event.xuanding.tasktogo.x, event.xuanding.tasktogo.y);
         event.xuanding.xianshilansebiankuang();
     }
 
@@ -100,7 +100,7 @@ public class MyListener {
 
         event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
                 event.xuanding.jingdu, event.xuanding.weidu,
-                event.xuanding.renwumubiao.x, event.xuanding.renwumubiao.y);
+                event.xuanding.tasktogo.x, event.xuanding.tasktogo.y);
     }
 
     @SubscribeEvent

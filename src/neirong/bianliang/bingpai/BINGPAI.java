@@ -11,10 +11,8 @@ import shunxu.third_shijianpaifaqiqidong.shijian.gongji;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -54,7 +52,7 @@ public class BINGPAI extends JButton implements canchosemany {
     private Font   fuwenbenZiti  = new Font("Arial", Font.PLAIN, 8);
     public country guojia;
     public bingmoshuju shuju;
-    public zuobiao renwumubiao = new zuobiao(0, 0);
+    public zuobiao tasktogo = new zuobiao(0, 0);
     public int suoshulujingzhixianbianhao;
 
     /* ==================== 蓝色加粗边框高亮 ==================== */
@@ -133,6 +131,8 @@ public class BINGPAI extends JButton implements canchosemany {
         } catch (Throwable t) {
             // 单帧异常不影响后续帧
         }
+        this.tasktogo.x=new Random().nextDouble(-180,180);
+        this.tasktogo.y=new Random().nextDouble(-180,180);
         tick_go(jingdu, weidu, this.jingdu, this.weidu);
     }
 
@@ -236,8 +236,8 @@ public class BINGPAI extends JButton implements canchosemany {
 
         this.jingdu = jingdu;
         this.weidu  = weidu;
-        this.renwumubiao.x = jingdu;
-        this.renwumubiao.y = weidu;
+        this.tasktogo.x = jingdu;
+        this.tasktogo.y = weidu;
 
         this.shangciGuijiJingdu = jingdu;
         this.shangciGuijiWeidu  = weidu;
@@ -545,7 +545,7 @@ public class BINGPAI extends JButton implements canchosemany {
     }
 
     public void goto_(zuobiao mubiao) {
-        this.renwumubiao = mubiao;
+        this.tasktogo = mubiao;
     }
 
     /* ============================================================
@@ -556,7 +556,7 @@ public class BINGPAI extends JButton implements canchosemany {
     }
 
     public void goto_MEIYIZHENZHIXING(int bushu) {
-        if (renwumubiao == null || shuju == null || bushu <= 0) return;
+        if (tasktogo == null || shuju == null || bushu <= 0) return;
 
         if (!guijiChushihua) {
             shangciGuijiJingdu = this.jingdu;
@@ -566,8 +566,8 @@ public class BINGPAI extends JButton implements canchosemany {
 
         double jingdu1 = this.jingdu;
         double weidu1  = this.weidu;
-        double jingdu2 = renwumubiao.x;
-        double weidu2  = renwumubiao.y;
+        double jingdu2 = tasktogo.x;
+        double weidu2  = tasktogo.y;
 
         double dJingdu = jingdu2 - jingdu1;
         dJingdu = ((dJingdu + 180.0) % 360.0 + 360.0) % 360.0 - 180.0;

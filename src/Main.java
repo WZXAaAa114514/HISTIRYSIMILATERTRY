@@ -27,7 +27,7 @@ public class Main {
         EVENTMAIN=new EventBus();
         EVENTMAIN.register(new MyListener());
         board.setGuijishifoukangjuchi(false);
-        javax.swing.Timer timer = new javax.swing.Timer(33, e -> {
+        javax.swing.Timer timer = new javax.swing.Timer(1, e -> {
             // 统一 tick 所有 BINGPAI，每个只 tick 一次
 
 

@@ -14,6 +14,7 @@ import java.util.List;
  *  - cantiaozhengdaxiao=true 时出现右下角外侧手柄，可拖拽改变大小。
  *  - setAutoZoomOnResize(true) 后，作为子画板时，像素尺寸变化会按比例同步内部 zoom，
  *    使挂在里面的世界内容也跟着一起放大/缩小。
+ *  - 内部有一个 1ms 定时器持续调用 repaint()，实现“每毫秒 repaint”。
  */
 public class XYBoard extends JPanel {
 
@@ -33,6 +34,62 @@ public class XYBoard extends JPanel {
     private static final int   HANDLE_PX     = 8;
     private static final Color HANDLE_FILL   = new Color(0, 150, 255, 210);
     private static final Color HANDLE_BORDER = new Color(255, 255, 255, 230);
+
+    /* ==================== 拖拽刷新控制 ==================== */
+    /** 是否正在拖拽 / 调整大小中 */
+    private boolean dragging = false;
+    /** 拖拽时是否同步立即绘制（true 更跟手，复杂场景可关掉走异步 repaint） */
+    private boolean syncRepaintOnDrag = true;
+    public void setSyncRepaintOnDrag(boolean on) { this.syncRepaintOnDrag = on; }
+    public boolean isSyncRepaintOnDrag() { return syncRepaintOnDrag; }
+    public boolean isDragging() { return dragging; }
+
+    /* ==================== 持续重绘（每毫秒 repaint） ==================== */
+    /** 持续重绘间隔（毫秒），默认 1ms */
+    private int  continuousRepaintIntervalMs = 1;
+    private Timer continuousRepaintTimer;
+    private boolean continuousRepaintEnabled = true;
+
+    /** 启动“每毫秒 repaint”定时器（默认在构造时已启动）。 */
+    public void startContinuousRepaint() {
+        continuousRepaintEnabled = true;
+        if (continuousRepaintTimer == null) {
+            continuousRepaintTimer = new Timer(continuousRepaintIntervalMs, e -> tickRepaint());
+            // 默认 coalesce = true，Swing 会合并多次 repaint 请求，避免撑爆 EDT。
+            continuousRepaintTimer.setCoalesce(true);
+        }
+        if (!continuousRepaintTimer.isRunning()) continuousRepaintTimer.start();
+    }
+
+    /** 停止“每毫秒 repaint”定时器。 */
+    public void stopContinuousRepaint() {
+        continuousRepaintEnabled = false;
+        if (continuousRepaintTimer != null) continuousRepaintTimer.stop();
+    }
+
+    public boolean isContinuousRepaintRunning() {
+        return continuousRepaintTimer != null && continuousRepaintTimer.isRunning();
+    }
+
+    /** 修改持续重绘间隔（毫秒）。 */
+    public void setContinuousRepaintInterval(int ms) {
+        continuousRepaintIntervalMs = Math.max(1, ms);
+        if (continuousRepaintTimer != null) {
+            continuousRepaintTimer.setDelay(continuousRepaintIntervalMs);
+            continuousRepaintTimer.setInitialDelay(continuousRepaintIntervalMs);
+        }
+    }
+
+    public int getContinuousRepaintInterval() { return continuousRepaintIntervalMs; }
+
+    /** 定时器 tick：把所有挂载子组件 + 自己都排一次 repaint。 */
+    private void tickRepaint() {
+        for (int i = 0, s = nodes.size(); i < s; i++) {
+            JComponent c = nodes.get(i).comp;
+            if (c != null && c.isVisible()) c.repaint();
+        }
+        repaint();
+    }
 
     /* ==================== 嵌套支持 ==================== */
     private boolean autoZoomOnResize = false;
@@ -92,11 +149,13 @@ public class XYBoard extends JPanel {
                     resizeStart = e.getPoint();
                     resizeStartW = h.w;
                     resizeStartH = h.h;
+                    dragging = true;
                     return;
                 }
                 if (!panEnabled) return;
                 dragStart = e.getPoint();
                 dragViewX = viewX; dragViewY = viewY;
+                dragging = true;
                 setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
             }
             @Override public void mouseDragged(MouseEvent e) {
@@ -113,14 +172,14 @@ public class XYBoard extends JPanel {
                     n.w = Math.max(4, (int) Math.round(resizeStartW + dw / ns));
                     n.h = Math.max(4, (int) Math.round(resizeStartH + dh / ns));
                     layoutNode(n);
-                    repaint();
+                    repaintNow();
                     return;
                 }
                 if (dragStart != null) {
                     viewX = dragViewX - (e.getX() - dragStart.x) / zoom;
                     viewY = dragViewY - (e.getY() - dragStart.y) / zoom;
                     layoutNodes();
-                    repaint();
+                    repaintNow();
                 }
                 fireMouse(e.getX(), e.getY(), true);
             }
@@ -128,7 +187,9 @@ public class XYBoard extends JPanel {
                 resizingNode = null;
                 resizeStart = null;
                 dragStart = null;
+                dragging = false;
                 setCursor(Cursor.getDefaultCursor());
+                repaint();
             }
             @Override public void mouseMoved(MouseEvent e) {
                 setCursor(hitHandle(e.getX(), e.getY()) != null
@@ -156,12 +217,15 @@ public class XYBoard extends JPanel {
             viewX = wx - (mx - W * 0.5) / zoom;
             viewY = wy - (my - H * 0.5) / zoom;
             layoutNodes();
-            repaint();
+            repaintNow();
         });
 
         addComponentListener(new ComponentAdapter() {
             @Override public void componentResized(ComponentEvent e) { onResized(); }
         });
+
+        // ★ 启动“每毫秒 repaint”持续定时器
+        if (continuousRepaintEnabled) startContinuousRepaint();
     }
 
     private void onResized() {
@@ -413,6 +477,24 @@ public class XYBoard extends JPanel {
             if (sx >= hx && sx < hx + HANDLE_PX && sy >= hy && sy < hy + HANDLE_PX) return n;
         }
         return null;
+    }
+
+    /**
+     * 拖拽过程中的刷新：
+     *  1) 挂载的子组件（含嵌套 XYBoard / PaintBoard）一起重绘，否则父画板动、子内容不跟着动；
+     *  2) 同步立即绘制本画板，避免快速拖动时异步 repaint 被合并导致的卡顿/拖影。
+     */
+    private void repaintNow() {
+        for (int i = 0, s = nodes.size(); i < s; i++) {
+            JComponent c = nodes.get(i).comp;
+            if (c != null && c.isVisible()) c.repaint();
+        }
+        int W = getWidth(), H = getHeight();
+        if (syncRepaintOnDrag && W > 0 && H > 0 && isShowing()) {
+            paintImmediately(0, 0, W, H);         // 同步画，跟手
+        } else {
+            repaint();
+        }
     }
 
     private void fireMouse(int sx, int sy, boolean inside) {
