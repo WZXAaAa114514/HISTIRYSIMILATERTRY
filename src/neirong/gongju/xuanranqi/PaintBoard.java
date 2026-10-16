@@ -1,5 +1,6 @@
 package neirong.gongju.xuanranqi;
 
+import neirong.gongju.gongju;
 import neirong.gongju.zhujie.LiveBinder;
 import neirong.gongju.zhujie.LiveRegistry;
 
@@ -1473,4 +1474,347 @@ public class PaintBoard extends JPanel {
         return getNonLiveColorAtLonLat(lon, lat, emptyColor);
     }
     public Color huoqux_ychuyanse(int x, int y) { return huoqux_ychuyanse(x, y, null); }
+    /* ============================================================
+     *  ★ 从 GeoJSON 文件路径加载并绘制（自包含，不依赖外部类）
+     *    点 → 实心圆（走 addGeoDot，参与烘焙）
+     *    线 → 描边
+     *    面 → 半透明实心填充（EVEN_ODD 支持内环挖洞）+ 描边
+     * ============================================================ */
+    public void jiazaiGeoJson(String lujing,Color color) {
+        if (lujing == null || lujing.trim().isEmpty()) return;
+
+        final List<double[]> dots = new ArrayList<>();
+        final List<List<double[]>> lines = new ArrayList<>();
+        final List<List<List<double[]>>> polys = new ArrayList<>();
+        try {
+            Object root = Gjp.parse(gjpReadAll(lujing));
+            gjpScan(root, dots, lines, polys);
+        } catch (IOException e) {
+            throw new RuntimeException("读取 GeoJSON 失败：" + lujing, e);
+        }
+
+        final Color FILL   = color; // 面：半透明蓝
+        final Color STROKE = color; // 线 / 面描边
+        final Color DOT    =color;      // 点：橙红
+        final float SW     = 2f;
+
+        // ---------- 面：填充（第一遍，全部画完再描边） ----------
+        for (int pi = 0; pi < polys.size(); pi++) {
+            List<List<double[]>> rings = polys.get(pi);
+            List<double[]> flat = new ArrayList<>();
+            for (int ri = 0; ri < rings.size(); ri++) {
+                List<double[]> r = rings.get(ri);
+                if (r.size() >= 3) flat.add(gjpFlat(r));
+            }
+            if (flat.isEmpty()) continue;
+            final double[][] R = flat.toArray(new double[0][]);
+            minglingliebiao.add((g2, b) -> {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(FILL);
+                Path2D.Double path = new Path2D.Double(Path2D.WIND_EVEN_ODD);
+                for (int ri = 0; ri < R.length; ri++) {
+                    double[] r = R[ri];
+                    for (int j = 0; j < r.length; j += 2) {
+                        int[] p = b.lonLatToScreen(r[j], r[j + 1]);
+                        if (j == 0) path.moveTo(p[0], p[1]);
+                        else        path.lineTo(p[0], p[1]);
+                    }
+                    path.closePath();
+                }
+                g2.fill(path);
+            });
+        }
+
+        // ---------- 面：描边（第二遍） ----------
+        for (int pi = 0; pi < polys.size(); pi++) {
+            List<List<double[]>> rings = polys.get(pi);
+            List<double[]> segs = new ArrayList<>();
+            for (int ri = 0; ri < rings.size(); ri++) {
+                List<double[]> r = rings.get(ri);
+                if (r.size() < 2) continue;
+                for (int j = 1; j < r.size(); j++) {
+                    double[] a = r.get(j - 1), c = r.get(j);
+                    segs.add(new double[]{a[0], a[1], c[0], c[1]});
+                }
+                double[] a = r.get(r.size() - 1), c = r.get(0);
+                if (a[0] != c[0] || a[1] != c[1]) segs.add(new double[]{a[0], a[1], c[0], c[1]});
+            }
+            if (segs.isEmpty()) continue;
+            final List<double[]> S = segs;
+            minglingliebiao.add((g2, b) -> {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(STROKE);
+                g2.setStroke(new BasicStroke(SW, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                for (int i = 0; i < S.size(); i++) {
+                    double[] s = S.get(i);
+                    int[] p1 = b.lonLatToScreen(s[0], s[1]);
+                    int[] p2 = b.lonLatToScreen(s[2], s[3]);
+                    g2.drawLine(p1[0], p1[1], p2[0], p2[1]);
+                }
+            });
+        }
+
+        // ---------- 折线 ----------
+        for (int li = 0; li < lines.size(); li++) {
+            List<double[]> r = lines.get(li);
+            if (r.size() < 2) continue;
+            List<double[]> segs = new ArrayList<>();
+            for (int j = 1; j < r.size(); j++) {
+                double[] a = r.get(j - 1), c = r.get(j);
+                segs.add(new double[]{a[0], a[1], c[0], c[1]});
+            }
+            final List<double[]> S = segs;
+            minglingliebiao.add((g2, b) -> {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(STROKE);
+                g2.setStroke(new BasicStroke(SW, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                for (int i = 0; i < S.size(); i++) {
+                    double[] s = S.get(i);
+                    int[] p1 = b.lonLatToScreen(s[0], s[1]);
+                    int[] p2 = b.lonLatToScreen(s[2], s[3]);
+                    g2.drawLine(p1[0], p1[1], p2[0], p2[1]);
+                }
+            });
+        }
+
+        // ---------- 点：实心圆 ----------
+        for (int i = 0; i < dots.size(); i++) {
+            double[] c = dots.get(i);
+            addGeoDot(c[0], c[1], 0.15, DOT);
+        }
+
+        markWorldDirty();
+    }
+
+    /* ============================================================
+     *  ★ 以下为配套辅助，一起贴进 PaintBoard 即可
+     * ============================================================ */
+
+    private static String gjpReadAll(String lujing) throws IOException {
+        File f = gongju.ziyuan(lujing+".geojson");
+        if (f == null) {
+            throw new IOException("找不到 GeoJSON 文件：\"" + lujing + "\""
+                    + "\n  已尝试的基准目录："
+                    + "\n    - 绝对路径"
+                    + "\n    - user.dir = " + System.getProperty("user.dir")
+                    + "\n    - 类所在目录"
+                    + "\n    - user.home = " + System.getProperty("user.home")
+                    + "\n    - classpath 资源");
+        }
+        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+            java.io.ByteArrayOutputStream bos =
+                    new java.io.ByteArrayOutputStream((int) Math.min(f.length(), 1 << 20));
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) bos.write(buf, 0, n);
+            return new String(bos.toByteArray(), java.nio.charset.StandardCharsets.UTF_8);
+        }
+    }
+
+    private static void gjpScan(Object node, List<double[]> dots,
+                                List<List<double[]>> lines,
+                                List<List<List<double[]>>> polys) {
+        if (!(node instanceof Map)) return;
+        Map<?, ?> m = (Map<?, ?>) node;
+        Object tObj = m.get("type");
+        if (!(tObj instanceof String)) return;
+        String type = (String) tObj;
+        switch (type) {
+            case "FeatureCollection": {
+                Object fs = m.get("features");
+                if (fs instanceof List) for (Object f : (List<?>) fs) gjpScan(f, dots, lines, polys);
+                break;
+            }
+            case "Feature": {
+                Object g = m.get("geometry");
+                if (g != null) gjpScan(g, dots, lines, polys);
+                break;
+            }
+            case "GeometryCollection": {
+                Object gs = m.get("geometries");
+                if (gs instanceof List) for (Object g : (List<?>) gs) gjpScan(g, dots, lines, polys);
+                break;
+            }
+            case "Point": {
+                double[] c = gjpCoord(m.get("coordinates"));
+                if (c != null) dots.add(c);
+                break;
+            }
+            case "MultiPoint": {
+                for (double[] c : gjpCoordList(m.get("coordinates"))) dots.add(c);
+                break;
+            }
+            case "LineString": {
+                List<double[]> cs = gjpCoordList(m.get("coordinates"));
+                if (cs.size() >= 2) lines.add(cs);
+                break;
+            }
+            case "MultiLineString": {
+                Object arr = m.get("coordinates");
+                if (arr instanceof List) for (Object o : (List<?>) arr) {
+                    List<double[]> cs = gjpCoordList(o);
+                    if (cs.size() >= 2) lines.add(cs);
+                }
+                break;
+            }
+            case "Polygon": {
+                List<List<double[]>> rings = gjpRings(m.get("coordinates"));
+                if (!rings.isEmpty()) polys.add(rings);
+                break;
+            }
+            case "MultiPolygon": {
+                Object arr = m.get("coordinates");
+                if (arr instanceof List) for (Object o : (List<?>) arr) {
+                    List<List<double[]>> rings = gjpRings(o);
+                    if (!rings.isEmpty()) polys.add(rings);
+                }
+                break;
+            }
+            default: // 未知几何忽略
+        }
+    }
+
+    private static double[] gjpCoord(Object o) {
+        if (!(o instanceof List)) return null;
+        List<?> l = (List<?>) o;
+        if (l.size() < 2) return null;
+        Double lon = gjpNum(l.get(0)), lat = gjpNum(l.get(1));
+        if (lon == null || lat == null) return null;
+        double alt = Double.NaN;
+        if (l.size() >= 3) { Double a = gjpNum(l.get(2)); if (a != null) alt = a; }
+        return new double[]{lon, lat, alt};
+    }
+
+    private static Double gjpNum(Object o) {
+        if (o instanceof Number) return ((Number) o).doubleValue();
+        if (o instanceof String) {
+            try { return Double.parseDouble(((String) o).trim()); }
+            catch (Exception e) { return null; }
+        }
+        return null;
+    }
+
+    private static List<double[]> gjpCoordList(Object o) {
+        List<double[]> out = new ArrayList<>();
+        if (!(o instanceof List)) return out;
+        for (Object x : (List<?>) o) {
+            double[] c = gjpCoord(x);
+            if (c != null) out.add(c);
+        }
+        return out;
+    }
+
+    private static List<List<double[]>> gjpRings(Object o) {
+        List<List<double[]>> rings = new ArrayList<>();
+        if (!(o instanceof List)) return rings;
+        for (Object x : (List<?>) o) {
+            List<double[]> cs = gjpCoordList(x);
+            if (cs.size() >= 2) rings.add(cs);
+        }
+        return rings;
+    }
+
+    private static double[] gjpFlat(List<double[]> ring) {
+        double[] a = new double[ring.size() * 2];
+        for (int i = 0; i < ring.size(); i++) {
+            a[i * 2]     = ring.get(i)[0];
+            a[i * 2 + 1] = ring.get(i)[1];
+        }
+        return a;
+    }
+
+    /** 极简 JSON 解析器（零依赖） */
+    private static final class Gjp {
+        private final String s;
+        private int p;
+        private Gjp(String s) { this.s = s; }
+        static Object parse(String s) { Gjp j = new Gjp(s); j.ws(); return j.val(); }
+        private void ws() {
+            while (p < s.length()) {
+                char c = s.charAt(p);
+                if (c == ' ' || c == '\t' || c == '\n' || c == '\r') p++; else break;
+            }
+        }
+        private Object val() {
+            ws();
+            if (p >= s.length()) throw new IllegalArgumentException("JSON 意外结束");
+            char c = s.charAt(p);
+            if (c == '{') return obj();
+            if (c == '[') return arr();
+            if (c == '"') return str();
+            if (s.startsWith("true",  p)) { p += 4; return Boolean.TRUE;  }
+            if (s.startsWith("false", p)) { p += 5; return Boolean.FALSE; }
+            if (s.startsWith("null",  p)) { p += 4; return null;          }
+            return num();
+        }
+        private Map<String, Object> obj() {
+            Map<String, Object> m = new LinkedHashMap<>();
+            p++; ws();
+            if (p < s.length() && s.charAt(p) == '}') { p++; return m; }
+            while (true) {
+                ws();
+                if (p >= s.length() || s.charAt(p) != '"') throw new IllegalArgumentException("JSON 对象键必须是字符串");
+                String k = str(); ws();
+                if (p >= s.length() || s.charAt(p) != ':') throw new IllegalArgumentException("JSON 缺少 ':'");
+                p++;
+                m.put(k, val()); ws();
+                if (p >= s.length()) throw new IllegalArgumentException("JSON 对象未闭合");
+                char c = s.charAt(p);
+                if (c == ',') { p++; continue; }
+                if (c == '}') { p++; return m; }
+                throw new IllegalArgumentException("JSON 对象意外字符 '" + c + "'");
+            }
+        }
+        private List<Object> arr() {
+            List<Object> l = new ArrayList<>();
+            p++; ws();
+            if (p < s.length() && s.charAt(p) == ']') { p++; return l; }
+            while (true) {
+                l.add(val()); ws();
+                if (p >= s.length()) throw new IllegalArgumentException("JSON 数组未闭合");
+                char c = s.charAt(p);
+                if (c == ',') { p++; continue; }
+                if (c == ']') { p++; return l; }
+                throw new IllegalArgumentException("JSON 数组意外字符 '" + c + "'");
+            }
+        }
+        private String str() {
+            p++;
+            StringBuilder sb = new StringBuilder();
+            while (true) {
+                if (p >= s.length()) throw new IllegalArgumentException("JSON 字符串未闭合");
+                char c = s.charAt(p++);
+                if (c == '"') return sb.toString();
+                if (c != '\\') { sb.append(c); continue; }
+                if (p >= s.length()) throw new IllegalArgumentException("JSON 转义不完整");
+                char e = s.charAt(p++);
+                switch (e) {
+                    case '"':  sb.append('"');  break;
+                    case '\\': sb.append('\\'); break;
+                    case '/':  sb.append('/');  break;
+                    case 'b':  sb.append('\b'); break;
+                    case 'f':  sb.append('\f'); break;
+                    case 'n':  sb.append('\n'); break;
+                    case 'r':  sb.append('\r'); break;
+                    case 't':  sb.append('\t'); break;
+                    case 'u':
+                        if (p + 4 > s.length()) throw new IllegalArgumentException("JSON \\u 转义不完整");
+                        sb.append((char) Integer.parseInt(s.substring(p, p + 4), 16));
+                        p += 4;
+                        break;
+                    default: throw new IllegalArgumentException("JSON 非法转义 '\\" + e + "'");
+                }
+            }
+        }
+        private Object num() {
+            int start = p;
+            while (p < s.length()) {
+                char c = s.charAt(p);
+                if ((c >= '0' && c <= '9') || c == '.' || c == 'e' || c == 'E' || c == '+' || c == '-') p++;
+                else break;
+            }
+            if (start == p) throw new IllegalArgumentException("JSON 非法数值");
+            return Double.valueOf(s.substring(start, p));
+        }
+    }
 }

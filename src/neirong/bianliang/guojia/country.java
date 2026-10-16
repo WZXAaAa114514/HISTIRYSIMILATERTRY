@@ -31,8 +31,12 @@ public class country {
 
         // ---------- 国家地图点（位置来自 zuobiao，颜色来自 country） ----------
         if(!ischuchang)return;
-        for (zuobiao z : this.zuobiaozu_GUOJIAQUANTU) {
-            board.addGeoDot(z.x, z.y, 0.005d, this.color);
+        if(this.zuobiaozu_GUOJIAQUANTU!=null&&!this.zuobiaozu_GUOJIAQUANTU.isEmpty()) {
+            for (zuobiao z : this.zuobiaozu_GUOJIAQUANTU) {
+                board.addGeoDot(z.x, z.y, 0.005d, this.color);
+            }
+        }{
+            board.jiazaiGeoJson(this.file,this.color);
         }
 
         // ---------- 城市 ----------
@@ -83,6 +87,14 @@ public class country {
 
     public country(List<zuobiao> a, Color color, chengshi shoudu) {
         this.zuobiaozu_GUOJIAQUANTU = a;
+        this.shoudu = shoudu;
+
+        this.color = color;
+    }
+    public String file;
+    public country(String file, Color color, chengshi shoudu) {
+        this.file=file;
+
         this.shoudu = shoudu;
 
         this.color = color;

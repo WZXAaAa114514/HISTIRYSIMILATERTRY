@@ -37,7 +37,8 @@ public final class huaditudianji {
 
     /** 基础步长（相对“中国跨度 62.5 度”的比例，保证对中国数据行为不变）。 */
     private static final double[] BASE_STEPS = {
-            1.0, 0.8, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.02
+            1.0, 0.8, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.05, 0.02,
+            0.01, 0.005, 0.002, 0.001
     };
     private static final double BASE_SPAN = 62.5;
 
@@ -271,8 +272,8 @@ public final class huaditudianji {
     }
 
     private static zuobiao makePoint(double lon, double lat) {
-        lon = Math.round(lon * 10000.0) / 10000.0;
-        lat = Math.round(lat * 10000.0) / 10000.0;
+        lon = Math.round(lon * 1e7) / 1e7;
+        lat = Math.round(lat * 1e7) / 1e7;
         return new zuobiao(lon, lat);
     }
 

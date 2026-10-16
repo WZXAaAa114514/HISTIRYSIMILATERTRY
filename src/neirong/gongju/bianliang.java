@@ -10,7 +10,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
 
 public class bianliang {
     public static List<country> countries=new ArrayList<>();
@@ -23,4 +22,11 @@ public class bianliang {
     public static final int BUTTON_H = 6;
     public static country PLAYCOUNTRY;
     public static JPanel zhuyemian=new JPanel(new BorderLayout());
+    public static JPanel diejiaceng = new JPanel(null) {{
+        Dimension s = Toolkit.getDefaultToolkit().getScreenSize();
+        setPreferredSize(s);
+        setSize(s);
+        setBounds(0, 0, s.width, s.height);
+        setOpaque(false);   // 背景透明
+    }};
 }

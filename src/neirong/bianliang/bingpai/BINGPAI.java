@@ -194,14 +194,9 @@ public class BINGPAI extends JButton implements canchosemany {
                 if (a_blianx_ybanjingsizekanx1_y1shifouzaikuangnei(
                         qianJingdu, qianWeidu, houJingdu, houWeidu,
                         bingpai.jingdu, bingpai.weidu, shuju.fanwei)) {
-//                    bingpai.shuju.gongjizhe.add(this);
-//                    this.shuju.gongjizhe.add(bingpai);
-//                    bingpai.kapianyanse = Color.BLACK;
-//                    bingpai.addNumber(-1);
-//                    this.kapianyanse = Color.BLACK;
-//                    this.addNumber(-1);
-                    if(bingpai.shuju.zhudongxing>this.shuju.zhudongxing) EVENTMAIN.post(new gongji(this,bingpai));
-                    else  EVENTMAIN.post(new gongji(bingpai,this));
+
+                    if(bingpai.shuju.zhudongxing>this.shuju.zhudongxing) {EVENTMAIN.post(new gongji(this,bingpai));break;}
+                    else  {EVENTMAIN.post(new gongji(bingpai,this));break;}
                 }
             }
         }

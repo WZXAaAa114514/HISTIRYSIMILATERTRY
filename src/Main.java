@@ -1,5 +1,7 @@
 
+import caozuo.bing_caozuo;
 import neirong.bianliang.xuanding.shubiaojianting;
+import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
 import neirong.gongju.pingmujilei.XYBoard;
 import neirong.gongju.pingmujilei.tuodongkuang;
@@ -23,7 +25,7 @@ import static neirong.gongju.bianliang.*;
 
 public class Main {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         EVENTMAIN=new EventBus();
         EVENTMAIN.register(new MyListener());
         board.setGuijishifoukangjuchi(false);
@@ -36,6 +38,7 @@ public class Main {
         timer.start();
         System.setProperty("sun.java2d.d3d", "True");
         System.setProperty("sun.java2d.noddraw", "True");
+
         xuanranqi_FRAMEdingyi.start();
         first_daoruguojia.daoruguojia();
         gongju.shiftdownstart();
@@ -67,6 +70,12 @@ public class Main {
             double[] p = b.worldToScreen(0, 0);
             g2.fillOval((int) p[0] - 5, (int) p[1] - 5, 10, 10);
         });
+        Thread.sleep(1000);
+        diejiaceng.setDoubleBuffered(true);
+        bianliang.gameframe.setGlassPane(diejiaceng);
+        diejiaceng.setVisible(true);
+        bing_caozuo a=new bing_caozuo();
+        a.kai();
 
 
 

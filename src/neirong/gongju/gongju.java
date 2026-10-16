@@ -1,11 +1,17 @@
 package neirong.gongju;
 
 import neirong.bianliang.zuobiao.zuobiao;
+import neirong.gongju.xuanranqi.PaintBoard;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
+import static neirong.gongju.bianliang.diejiaceng;
 
 public class gongju {
     public static boolean shifoushixianjiekou(Class<?> a, Class<?> b) {
@@ -220,21 +226,59 @@ public class gongju {
     }
 
     /** 更自由的版本：直接指定绝对像素位置，尺寸仍取自 panel 自身 */
+
     public static void tanchuyemian(JPanel panel, int x, int y) {
         SwingUtilities.invokeLater(() -> {
-            JPanel glass = new JPanel(null);   // 绝对定位容器
-            glass.setOpaque(false);            // 关键：不遮住 board
-
-            panel.setOpaque(false);            // 关键：自身也不要实底(除非你要)
+            panel.setOpaque(false);
+            panel.setDoubleBuffered(true);
             panel.setBounds(x, y,
                     Math.max(panel.getPreferredSize().width, 100),
                     Math.max(panel.getPreferredSize().height, 40));
-            glass.add(panel);
 
-            bianliang.gameframe.setGlassPane(glass);
-            glass.setVisible(true);            // ★ 必须
+            diejiaceng.add(panel);
+            bianliang.diejiaceng.revalidate();
+            bianliang.diejiaceng.repaint(panel.getX(), panel.getY(),
+                    panel.getWidth(), panel.getHeight());
         });
     }
+    public static File ziyuan(String lujing) {
+        if (lujing == null || lujing.trim().isEmpty()) return null;
+
+        // 1. 绝对路径
+        File f = new File(lujing);
+        if (f.isAbsolute()) return (f.exists() && f.isFile()) ? f : null;
+
+        // 2~4. 依次尝试各个基准目录
+        List<File> cands = new ArrayList<>(4);
+        cands.add(new File(System.getProperty("user.dir", "."), lujing));
+        try {
+            java.net.URL url = PaintBoard.class.getProtectionDomain()
+                    .getCodeSource().getLocation();
+            if (url != null) {
+                File base = new File(url.toURI());
+                if (base.isFile()) base = base.getParentFile(); // jar → 所在目录
+                if (base != null) cands.add(new File(base, lujing));
+            }
+        } catch (Exception ignored) {}
+        cands.add(new File(System.getProperty("user.home", "."), lujing));
+
+        for (int i = 0, n = cands.size(); i < n; i++) {
+            File c = cands.get(i);
+            if (c.exists() && c.isFile()) return c;
+        }
+
+        // 5. classpath 资源（IDE 里放在 resources 目录下）
+        try {
+            java.net.URL res = PaintBoard.class.getClassLoader().getResource(lujing);
+            if (res != null && "file".equals(res.getProtocol())) {
+                File rf = new File(res.toURI());
+                if (rf.exists() && rf.isFile()) return rf;
+            }
+        } catch (Exception ignored) {}
+
+        return null;
+    }
+
 
 
     // ================== 测试 ==================
