@@ -1,0 +1,8 @@
+C:\Users\AD\AppData\Local\Temp\comgr-279af5\input\CompileSource:45:19: error: invalid operands to binary expression ('__private double' and 'double')
+   45 |     d_26  =  d_25 % 360.0;
+      |              ~~~~ ^ ~~~~~
+C:\Users\AD\AppData\Local\Temp\comgr-279af5\input\CompileSource:47:19: error: invalid operands to binary expression ('__private double' and 'double')
+   47 |     d_28  =  d_27 % 360.0;
+      |              ~~~~ ^ ~~~~~
+2 errors generated.
+Error: Failed to compile source (from CL or HIP source to LLVM IR).
