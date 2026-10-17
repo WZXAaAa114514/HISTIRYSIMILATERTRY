@@ -165,13 +165,13 @@ public final class huaditudianji {
     /**
      * 根据 GeoJSON 路径和目标点数，返回境内经纬度点集。
      */
-    public static List<zuobiao> generate(String geojsonPath, int count) {
+    public static List<zuobiao> generate(String geojsonPath, long count) {
         return load(geojsonPath).generate(count);
     }
 
     // ================= 生成 =================
 
-    public List<zuobiao> generate(int count) {
+    public List<zuobiao> generate(long count) {
         if (count <= 0) return new ArrayList<>();
 
         final double baseLon = minLon;
@@ -179,13 +179,13 @@ public final class huaditudianji {
 
         LatInfo[] latInfos = null;
         double chosenStep = 0;
-        int totalCandidates = 0;
+        long totalCandidates = 0;
         int latCount = 0;
         int lonCount = 0;
 
         for (double step : steps) {
-            latCount = (int) Math.floor((maxLat - minLat) / step + 1e-9) + 1;
-            lonCount = (int) Math.floor((maxLon - minLon) / step + 1e-9) + 1;
+            latCount = (int) ((long) Math.floor((maxLat - minLat) / step + 1e-9) + 1);
+            lonCount = (int) ((long) Math.floor((maxLon - minLon) / step + 1e-9) + 1);
 
             final double s = step;
             final int lc = latCount;
@@ -195,22 +195,22 @@ public final class huaditudianji {
             IntStream.range(0, lc).parallel().forEach(j -> {
                 double lat = baseLat + j * s;
                 List<double[]> intervals = getLonIntervals(lat);
-                List<int[]> idxIntervals = new ArrayList<>();
-                int total = 0;
+                List<long[]> idxIntervals = new ArrayList<>();
+                long total = 0;
                 for (double[] iv : intervals) {
-                    int start = (int) Math.ceil((iv[0] - baseLon) / s - 1e-9);
-                    int end = (int) Math.floor((iv[1] - baseLon) / s + 1e-9);
+                    long start = (long) Math.ceil((iv[0] - baseLon) / s - 1e-9);
+                    long end = (long) Math.floor((iv[1] - baseLon) / s + 1e-9);
                     if (start < 0) start = 0;
                     if (end >= loc) end = loc - 1;
                     if (start <= end) {
-                        idxIntervals.add(new int[]{start, end});
+                        idxIntervals.add(new long[]{start, end});
                         total += end - start + 1;
                     }
                 }
                 infos[j] = new LatInfo(j, lat, idxIntervals, total);
             });
 
-            int sum = 0;
+            long sum = 0;
             for (LatInfo info : infos) sum += info.count;
 
             latInfos = infos;
@@ -224,17 +224,17 @@ public final class huaditudianji {
             return new ArrayList<>();
         }
 
-        int[] prefix = new int[latCount + 1];
+        long[] prefix = new long[latCount + 1];
         for (int j = 0; j < latCount; j++) {
             prefix[j + 1] = prefix[j] + latInfos[j].count;
         }
 
         // 所有 step 都不够，返回全部候选
         if (totalCandidates < count) {
-            List<zuobiao> list = new ArrayList<>(totalCandidates);
+            List<zuobiao> list = new ArrayList<>((int) totalCandidates);
             for (LatInfo info : latInfos) {
-                for (int[] iv : info.intervals) {
-                    for (int i = iv[0]; i <= iv[1]; i++) {
+                for (long[] iv : info.intervals) {
+                    for (long i = iv[0]; i <= iv[1]; i++) {
                         list.add(makePoint(baseLon + i * chosenStep, info.lat));
                     }
                 }
@@ -243,18 +243,19 @@ public final class huaditudianji {
         }
 
         // 抽取 count 个
-        zuobiao[] result = new zuobiao[count];
+        int nCount = (int) count;
+        zuobiao[] result = new zuobiao[nCount];
         final double s = chosenStep;
-        final int tc = totalCandidates;
+        final long tc = totalCandidates;
         final LatInfo[] infos = latInfos;
-        final int[] pref = prefix;
+        final long[] pref = prefix;
 
         if (count == 1) {
-            int idx = tc / 2;
+            long idx = tc / 2;
             result[0] = pickPoint(idx, pref, infos, s, baseLon);
         } else {
-            IntStream.range(0, count).parallel().forEach(k -> {
-                int idx = (int) Math.round(k * (tc - 1.0) / (count - 1.0));
+            IntStream.range(0, nCount).parallel().forEach(k -> {
+                long idx = (long) Math.round(k * (tc - 1.0) / (count - 1.0));
                 result[k] = pickPoint(idx, pref, infos, s, baseLon);
             });
         }
@@ -262,12 +263,12 @@ public final class huaditudianji {
         return new ArrayList<>(Arrays.asList(result));
     }
 
-    private static zuobiao pickPoint(int idx, int[] pref, LatInfo[] infos,
+    private static zuobiao pickPoint(long idx, long[] pref, LatInfo[] infos,
                                      double step, double baseLon) {
         int j = findLatIndex(pref, idx);
         LatInfo info = infos[j];
-        int m = idx - pref[j];
-        int i = findLonIndex(info.intervals, m);
+        long m = idx - pref[j];
+        long i = findLonIndex(info.intervals, m);
         return makePoint(baseLon + i * step, info.lat);
     }
 
@@ -277,7 +278,7 @@ public final class huaditudianji {
         return new zuobiao(lon, lat);
     }
 
-    private static int findLatIndex(int[] prefix, int idx) {
+    private static int findLatIndex(long[] prefix, long idx) {
         int lo = 0, hi = prefix.length - 1;
         while (lo < hi) {
             int mid = (lo + hi) >>> 1;
@@ -287,9 +288,9 @@ public final class huaditudianji {
         return lo;
     }
 
-    private static int findLonIndex(List<int[]> intervals, int m) {
-        for (int[] iv : intervals) {
-            int len = iv[1] - iv[0] + 1;
+    private static long findLonIndex(List<long[]> intervals, long m) {
+        for (long[] iv : intervals) {
+            long len = iv[1] - iv[0] + 1;
             if (m < len) return iv[0] + m;
             m -= len;
         }
@@ -448,12 +449,12 @@ public final class huaditudianji {
     }
 
     private static final class LatInfo {
-        final int j;
+        final long j;
         final double lat;
-        final List<int[]> intervals;
-        final int count;
+        final List<long[]> intervals;
+        final long count;
 
-        LatInfo(int j, double lat, List<int[]> intervals, int count) {
+        LatInfo(long j, double lat, List<long[]> intervals, long count) {
             this.j = j;
             this.lat = lat;
             this.intervals = intervals;

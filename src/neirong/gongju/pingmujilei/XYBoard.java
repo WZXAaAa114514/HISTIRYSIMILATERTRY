@@ -29,9 +29,9 @@ public class XYBoard extends JPanel {
 
     private Node resizingNode;
     private Point resizeStart;
-    private int resizeStartW, resizeStartH;
+    private long resizeStartW, resizeStartH;
 
-    private static final int   HANDLE_PX     = 8;
+    private static final long   HANDLE_PX     = 8;
     private static final Color HANDLE_FILL   = new Color(0, 150, 255, 210);
     private static final Color HANDLE_BORDER = new Color(255, 255, 255, 230);
 
@@ -46,7 +46,7 @@ public class XYBoard extends JPanel {
 
     /* ==================== 持续重绘（每毫秒 repaint） ==================== */
     /** 持续重绘间隔（毫秒），默认 1ms */
-    private int  continuousRepaintIntervalMs = 1;
+    private long  continuousRepaintIntervalMs = 1;
     private Timer continuousRepaintTimer;
     private boolean continuousRepaintEnabled = true;
 
@@ -54,7 +54,7 @@ public class XYBoard extends JPanel {
     public void startContinuousRepaint() {
         continuousRepaintEnabled = true;
         if (continuousRepaintTimer == null) {
-            continuousRepaintTimer = new Timer(continuousRepaintIntervalMs, e -> tickRepaint());
+            continuousRepaintTimer = new Timer((int) continuousRepaintIntervalMs, e -> tickRepaint());
             // 默认 coalesce = true，Swing 会合并多次 repaint 请求，避免撑爆 EDT。
             continuousRepaintTimer.setCoalesce(true);
         }
@@ -72,20 +72,20 @@ public class XYBoard extends JPanel {
     }
 
     /** 修改持续重绘间隔（毫秒）。 */
-    public void setContinuousRepaintInterval(int ms) {
+    public void setContinuousRepaintInterval(long ms) {
         continuousRepaintIntervalMs = Math.max(1, ms);
         if (continuousRepaintTimer != null) {
-            continuousRepaintTimer.setDelay(continuousRepaintIntervalMs);
-            continuousRepaintTimer.setInitialDelay(continuousRepaintIntervalMs);
+            continuousRepaintTimer.setDelay((int) continuousRepaintIntervalMs);
+            continuousRepaintTimer.setInitialDelay(Math.toIntExact(continuousRepaintIntervalMs));
         }
     }
 
-    public int getContinuousRepaintInterval() { return continuousRepaintIntervalMs; }
+    public long getContinuousRepaintInterval() { return continuousRepaintIntervalMs; }
 
     /** 定时器 tick：把所有挂载子组件 + 自己都排一次 repaint。 */
     private void tickRepaint() {
-        for (int i = 0, s = nodes.size(); i < s; i++) {
-            JComponent c = nodes.get(i).comp;
+        for (long i = 0, s = nodes.size(); i < s; i++) {
+            JComponent c = nodes.get((int) i).comp;
             if (c != null && c.isVisible()) c.repaint();
         }
         repaint();
@@ -94,7 +94,7 @@ public class XYBoard extends JPanel {
     /* ==================== 嵌套支持 ==================== */
     private boolean autoZoomOnResize = false;
     private boolean autoBasePending  = false;
-    private int     autoBaseW = 0, autoBaseH = 0;
+    private long     autoBaseW = 0, autoBaseH = 0;
     private double  autoBaseZoom = 0;
 
     /** 嵌套时建议关掉：避免子画板抢走父画板的滚轮缩放。 */
@@ -115,16 +115,16 @@ public class XYBoard extends JPanel {
     public static final class Node {
         final JComponent comp;
         double x, y;
-        int ax, ay;
-        int w, h;
+        long ax, ay;
+        long w, h;
         boolean scaleWithZoom;
         double baseZoom;
         float minS = 0.2f, maxS = 5f;
         boolean cantiaozhengdaxiao = false;
-        int lastX = Integer.MIN_VALUE, lastY, lastW, lastH;
+        long lastX = Integer.MIN_VALUE, lastY, lastW, lastH;
 
-        Node(JComponent c, double x, double y, int ax, int ay,
-             int w, int h, boolean sz, double bz) {
+        Node(JComponent c, double x, double y, long ax, long ay,
+             long w, long h, boolean sz, double bz) {
             this.comp = c; this.x = x; this.y = y;
             this.ax = ax; this.ay = ay; this.w = w; this.h = h;
             this.scaleWithZoom = sz; this.baseZoom = bz;
@@ -134,12 +134,12 @@ public class XYBoard extends JPanel {
     private final List<Node> nodes = new ArrayList<>(8);
 
     /* ==================== 构造 ==================== */
-    public XYBoard(int i, int i1) {
+    public XYBoard(long i, long i1) {
         setLayout(null);
         setOpaque(true);
         setBackground(Color.BLACK);
-        setPreferredSize(new Dimension(i, i1));
-        setBounds(100, 100, i, i1);
+        setPreferredSize(new Dimension((int) i, (int) i1));
+        setBounds(100, 100, (int) i, Math.toIntExact(i1));
         MouseAdapter ma = new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e) {
                 if (!SwingUtilities.isLeftMouseButton(e)) return;
@@ -167,10 +167,10 @@ public class XYBoard extends JPanel {
                         if (ns < n.minS) ns = n.minS; else if (ns > n.maxS) ns = n.maxS;
                     }
                     if (ns <= 0) ns = 1.0;
-                    int dw = e.getX() - resizeStart.x;
-                    int dh = e.getY() - resizeStart.y;
-                    n.w = Math.max(4, (int) Math.round(resizeStartW + dw / ns));
-                    n.h = Math.max(4, (int) Math.round(resizeStartH + dh / ns));
+                    long dw = e.getX() - resizeStart.x;
+                    long dh = e.getY() - resizeStart.y;
+                    n.w = Math.max(4, (long) Math.round(resizeStartW + dw / ns));
+                    n.h = Math.max(4, (long) Math.round(resizeStartH + dh / ns));
                     layoutNode(n);
                     repaintNow();
                     return;
@@ -204,13 +204,13 @@ public class XYBoard extends JPanel {
 
         addMouseWheelListener(e -> {
             if (!wheelZoomEnabled) return;
-            int W = getWidth(), H = getHeight();
+            long W = getWidth(), H = getHeight();
             if (W <= 0 || H <= 0) return;
             double factor = Math.pow(1.15, -e.getWheelRotation());
             double ns = zoom * factor;
             if (ns < minZoom) ns = minZoom; else if (ns > maxZoom) ns = maxZoom;
             if (ns == zoom) return;
-            int mx = e.getX(), my = e.getY();
+            long mx = e.getX(), my = e.getY();
             double wx = viewX + (mx - W * 0.5) / zoom;
             double wy = viewY + (my - H * 0.5) / zoom;
             zoom = ns;
@@ -229,7 +229,7 @@ public class XYBoard extends JPanel {
     }
 
     private void onResized() {
-        int W = getWidth(), H = getHeight();
+        long W = getWidth(), H = getHeight();
         if (W <= 0 || H <= 0) return;
 
         if (autoZoomOnResize) {
@@ -299,7 +299,7 @@ public class XYBoard extends JPanel {
     public void setAutoZoomOnResize(boolean on) {
         autoZoomOnResize = on;
         if (on) {
-            int W = getWidth(), H = getHeight();
+            long W = getWidth(), H = getHeight();
             if (W > 0 && H > 0) {
                 autoBaseW = W; autoBaseH = H; autoBaseZoom = zoom;
                 autoBasePending = false;
@@ -312,7 +312,7 @@ public class XYBoard extends JPanel {
     }
 
     /** 显式指定基准尺寸（推荐在挂载前调用，用 preferredSize 作基准）。 */
-    public void setAutoZoomOnResize(boolean on, int baseW, int baseH) {
+    public void setAutoZoomOnResize(boolean on, long baseW, long baseH) {
         autoZoomOnResize = on;
         autoBaseW = Math.max(1, baseW);
         autoBaseH = Math.max(1, baseH);
@@ -327,7 +327,7 @@ public class XYBoard extends JPanel {
     }
 
     public Node addComponent(JComponent c, double wx, double wy,
-                             int anchorX, int anchorY, boolean scaleWithZoom) {
+                             long anchorX, long anchorY, boolean scaleWithZoom) {
         if (c == null) return null;
         c.setFocusable(false);
         Dimension d = c.getPreferredSize();
@@ -364,7 +364,7 @@ public class XYBoard extends JPanel {
         if (nodes.remove(n)) remove(n.comp);
     }
     public void clearComponents() {
-        for (int i = nodes.size() - 1; i >= 0; i--) remove(nodes.get(i).comp);
+        for (long i = nodes.size() - 1; i >= 0; i--) remove(nodes.get((int) i).comp);
         nodes.clear();
     }
     public int getComponentCount() { return nodes.size(); }
@@ -373,7 +373,7 @@ public class XYBoard extends JPanel {
         if (n == null) return;
         n.x = x; n.y = y; layoutNode(n);
     }
-    public void setNodeAnchor(Node n, int ax, int ay) {
+    public void setNodeAnchor(Node n, long ax, long ay) {
         if (n == null) return;
         n.ax = ax; n.ay = ay; layoutNode(n);
     }
@@ -403,10 +403,10 @@ public class XYBoard extends JPanel {
 
     /* ==================== 内部布局 ==================== */
     private void layoutNodes() {
-        for (int i = 0, s = nodes.size(); i < s; i++) layoutNode(nodes.get(i));
+        for (long i = 0, s = nodes.size(); i < s; i++) layoutNode(nodes.get((int) i));
     }
     private void layoutNode(Node n) {
-        int W = getWidth(), H = getHeight();
+        long W = getWidth(), H = getHeight();
         if (W <= 0 || H <= 0) return;
 
         double ns = 1.0;
@@ -414,14 +414,14 @@ public class XYBoard extends JPanel {
             ns = zoom / n.baseZoom;
             if (ns < n.minS) ns = n.minS; else if (ns > n.maxS) ns = n.maxS;
         }
-        int sw = Math.max(1, (int) Math.round(n.w * ns));
-        int sh = Math.max(1, (int) Math.round(n.h * ns));
-        int sx = (int) Math.round((n.x - viewX) * zoom + W * 0.5 + n.ax * ns);
-        int sy = (int) Math.round((n.y - viewY) * zoom + H * 0.5 + n.ay * ns);
+        long sw = Math.max(1, (long) Math.round(n.w * ns));
+        long sh = Math.max(1, (long) Math.round(n.h * ns));
+        long sx = (long) Math.round((n.x - viewX) * zoom + W * 0.5 + n.ax * ns);
+        long sy = (long) Math.round((n.y - viewY) * zoom + H * 0.5 + n.ay * ns);
 
         if (n.lastX != sx || n.lastY != sy || n.lastW != sw || n.lastH != sh) {
             n.lastX = sx; n.lastY = sy; n.lastW = sw; n.lastH = sh;
-            n.comp.setBounds(sx, sy, sw, sh);
+            n.comp.setBounds((int) sx, Math.toIntExact(sy), Math.toIntExact(sw), Math.toIntExact(sh));
         }
         n.comp.setVisible(sx + sw > 0 && sx < W && sy + sh > 0 && sy < H);
     }
@@ -446,21 +446,21 @@ public class XYBoard extends JPanel {
     protected void paintChildren(Graphics g) {
         super.paintChildren(g);
         if (nodes.isEmpty()) return;
-        int W = getWidth(), H = getHeight();
+        long W = getWidth(), H = getHeight();
         if (W <= 0 || H <= 0) return;
         Graphics2D g2 = (Graphics2D) g.create();
         try {
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            for (int i = 0, s = nodes.size(); i < s; i++) {
-                Node n = nodes.get(i);
+            for (long i = 0, s = nodes.size(); i < s; i++) {
+                Node n = nodes.get((int) i);
                 if (!n.cantiaozhengdaxiao || !n.comp.isVisible()) continue;
-                int hx = n.lastX + n.lastW;
-                int hy = n.lastY + n.lastH;
+                long hx = n.lastX + n.lastW;
+                long hy = n.lastY + n.lastH;
                 if (hx + HANDLE_PX <= 0 || hy + HANDLE_PX <= 0 || hx >= W || hy >= H) continue;
                 g2.setColor(HANDLE_FILL);
-                g2.fillRect(hx, hy, HANDLE_PX, HANDLE_PX);
+                g2.fillRect((int) hx, (int) hy, (int) HANDLE_PX, (int) HANDLE_PX);
                 g2.setColor(HANDLE_BORDER);
-                g2.drawRect(hx, hy, HANDLE_PX, HANDLE_PX);
+                g2.drawRect((int) hx, (int) hy, (int) HANDLE_PX, Math.toIntExact(HANDLE_PX));
             }
         } finally {
             g2.dispose();
@@ -468,12 +468,12 @@ public class XYBoard extends JPanel {
     }
 
     /* ==================== 内部工具 ==================== */
-    private Node hitHandle(int sx, int sy) {
-        for (int i = nodes.size() - 1; i >= 0; i--) {
-            Node n = nodes.get(i);
+    private Node hitHandle(long sx, long sy) {
+        for (long i = nodes.size() - 1; i >= 0; i--) {
+            Node n = nodes.get((int) i);
             if (!n.cantiaozhengdaxiao || !n.comp.isVisible()) continue;
-            int hx = n.lastX + n.lastW;
-            int hy = n.lastY + n.lastH;
+            long hx = n.lastX + n.lastW;
+            long hy = n.lastY + n.lastH;
             if (sx >= hx && sx < hx + HANDLE_PX && sy >= hy && sy < hy + HANDLE_PX) return n;
         }
         return null;
@@ -485,23 +485,23 @@ public class XYBoard extends JPanel {
      *  2) 同步立即绘制本画板，避免快速拖动时异步 repaint 被合并导致的卡顿/拖影。
      */
     private void repaintNow() {
-        for (int i = 0, s = nodes.size(); i < s; i++) {
-            JComponent c = nodes.get(i).comp;
+        for (long i = 0, s = nodes.size(); i < s; i++) {
+            JComponent c = nodes.get((int) i).comp;
             if (c != null && c.isVisible()) c.repaint();
         }
-        int W = getWidth(), H = getHeight();
+        long W = getWidth(), H = getHeight();
         if (syncRepaintOnDrag && W > 0 && H > 0 && isShowing()) {
-            paintImmediately(0, 0, W, H);         // 同步画，跟手
+            paintImmediately(0, 0, (int) W, Math.toIntExact(H));         // 同步画，跟手
         } else {
             repaint();
         }
     }
 
-    private void fireMouse(int sx, int sy, boolean inside) {
+    private void fireMouse(long sx, long sy, boolean inside) {
         MouseWorldListener l = mouseListener;
         if (l == null) return;
         if (!inside) { l.onMouseWorld(0, 0, false); return; }
-        int W = getWidth(), H = getHeight();
+        long W = getWidth(), H = getHeight();
         if (W <= 0 || H <= 0) { l.onMouseWorld(0, 0, false); return; }
         l.onMouseWorld(viewX + (sx - W * 0.5) / zoom,
                 viewY + (sy - H * 0.5) / zoom, true);

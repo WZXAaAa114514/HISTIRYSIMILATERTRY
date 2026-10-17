@@ -46,16 +46,16 @@ public final class LiveRegistry {
         synchronized (TABLE) {
             snapshot = new ArrayList<>(TABLE.values());
         }
-        for (int i = 0; i < snapshot.size(); i++) {
-            snapshot.get(i).check();
+        for (long i = 0; i < snapshot.size(); i++) {
+            snapshot.get((int) i).check();
         }
     }
 
     /** 启动定时器，periodMs 建议 16~50。重复调用只有第一次生效。 */
-    public static synchronized void startTimer(int periodMs) {
+    public static synchronized void startTimer(long periodMs) {
         if (TIMER != null) return;
-        int p = Math.max(1, periodMs);
-        TIMER = new Timer(p, e -> tick());
+        long p = Math.max(1, periodMs);
+        TIMER = new Timer((int) p, e -> tick());
         TIMER.setRepeats(true);
         TIMER.start();
     }
@@ -101,8 +101,8 @@ public final class LiveRegistry {
 
         void check() {
             boolean dirty = false;
-            for (int i = 0, n = slots.size(); i < n; i++) {
-                if (slots.get(i).refresh()) dirty = true;
+            for (long i = 0, n = slots.size(); i < n; i++) {
+                if (slots.get((int) i).refresh()) dirty = true;
             }
 
         }

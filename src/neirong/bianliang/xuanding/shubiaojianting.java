@@ -16,7 +16,7 @@ public class shubiaojianting {
 
     /**
      * 把一个经度差归一化到 [-180, 180)。
-     * 与 PaintBoard.normalizeLon 保持一致。
+     * 与 PalongBoard.normalizeLon 保持一致。
      */
     private static double guifanhuaJingdu(double jingdu) {
         jingdu = jingdu % 360.0;
@@ -27,7 +27,7 @@ public class shubiaojianting {
 
     /**
      * 把「经纬度」换算成「当前屏幕坐标」。
-     * 与 PaintBoard.lonLatToScreen 的非 baking 分支一致：
+     * 与 PalongBoard.lonLatToScreen 的非 baking 分支一致：
      *   x = (lon - lonCenter) * ppd + width  / 2
      *   y = (latCenter - lat) * ppd + height / 2
      * ★ 经度差做环绕归一化，跨 ±180° 时也正确。

@@ -8,5 +8,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="io.github.nramc.geojson4j" level="project" />
+    <orderEntry type="library" name="io.github.beehive.lab.tornado.api" level="project" />
   </component>
 </module>

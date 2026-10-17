@@ -29,11 +29,11 @@ import java.util.function.Consumer;
 public class TimeBus {
 
     private static final class Node {
-        final int priority;
+        final long priority;
         final Consumer<Duration> consumer;
         final Object owner;
         final String name;
-        Node(int priority, Consumer<Duration> consumer, Object owner, String name) {
+        Node(long priority, Consumer<Duration> consumer, Object owner, String name) {
             this.priority = priority;
             this.consumer = consumer;
             this.owner = owner;
@@ -47,7 +47,7 @@ public class TimeBus {
     private final AtomicLong fireCount = new AtomicLong(0);
 
     public long getFireCount() { return fireCount.get(); }
-    public int  getListenerCount() { return nodes.length; }
+    public long  getListenerCount() { return nodes.length; }
 
     /** 注册：扫描 target 上所有带 @OnTimeChange 的方法 */
     public synchronized void register(Object target) {
@@ -73,7 +73,7 @@ public class TimeBus {
             list.add(new Node(ann.priority(), c, target, name));
         }
 
-        list.sort((a, b) -> Integer.compare(b.priority, a.priority));
+        list.sort((a, b) -> Integer.compare((int) b.priority, Math.toIntExact(a.priority)));
         nodes = list.toArray(new Node[0]);
     }
 

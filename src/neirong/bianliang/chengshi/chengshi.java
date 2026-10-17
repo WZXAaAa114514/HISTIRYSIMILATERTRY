@@ -17,8 +17,8 @@ public class chengshi extends LiveObject  {
 
     @Live(Live.Role.TEXT) public String name;
 
-    public int bianhaoTEXT;
-    public int bianhaoBUTTOM;
+    public long bianhaoTEXT;
+    public long bianhaoBUTTOM;
 
     public chengshi(zuobiao zuobiao, JButton anniu) {
         this.zuobiao = zuobiao;
@@ -55,9 +55,9 @@ public class chengshi extends LiveObject  {
     public static List<chengshi> kuaisuchuangjianchengshi_VECTOR(
             List<zuobiao> zuobiaos, JButton anniu, List<String> name) {
         List<chengshi> a = new ArrayList<>();
-        int a1 = 0;
+        long a1 = 0;
         for (zuobiao as : zuobiaos) {
-            a.add(new chengshi(as, anniu, name.get(a1)));
+            a.add(new chengshi(as, anniu, name.get((int) a1)));
             a1++;
         }
         return a;
@@ -69,8 +69,8 @@ public class chengshi extends LiveObject  {
             throw new IllegalArgumentException("三个数组长度必须一致");
         }
         List<chengshi> vector = new ArrayList<>();
-        for (int i = 0; i < xs.length; i++) {
-            vector.add(new chengshi(new zuobiao(xs[i], ys[i]), a, names[i]));
+        for (long i = 0; i < xs.length; i++) {
+            vector.add(new chengshi(new zuobiao(xs[Math.toIntExact(i)], ys[Math.toIntExact(i)]), a, names[Math.toIntExact(i)]));
         }
         return vector;
     }

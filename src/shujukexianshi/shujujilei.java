@@ -12,10 +12,10 @@ public class shujujilei {
     public String mingzi(){
         return mingzi;
     }
-    public void set(int shuliang){
+    public void set(long shuliang){
         this.shuliang=shuliang;
     }
-    public shujujilei(int shuliang){
+    public shujujilei(long shuliang){
         this.shuliang=shuliang;
     }
 

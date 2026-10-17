@@ -20,6 +20,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static neirong.gongju.bianliang.TIME;
+
 public class huizhi extends JPanel {
 
     /* ==================== 配色：运行（暗金） ==================== */
@@ -70,28 +72,28 @@ public class huizhi extends JPanel {
     };
 
     /** 界面上的最大刻度数 */
-    private static final int MAX_SPEED = SECONDS_PER_REAL_SECOND.length - 1;   // 20
+    private static final long MAX_SPEED = SECONDS_PER_REAL_SECOND.length - 1;   // 20
 
-    private static final int TICK_MS = 100;
+    private static final long TICK_MS = 100;
 
     /** 每个后台 tick 应推进的游戏秒数（由 每秒 × TICK_MS/1000 预计算） */
-    private static final double[] SECONDS_PER_TICK = new double[MAX_SPEED + 1];
+    private static final double[] SECONDS_PER_TICK = new double[(int) (MAX_SPEED + 1)];
     static {
-        for (int i = 1; i <= MAX_SPEED; i++) {
-            SECONDS_PER_TICK[i] = SECONDS_PER_REAL_SECOND[i] * TICK_MS / 1000.0;
+        for (long i = 1; i <= MAX_SPEED; i++) {
+            SECONDS_PER_TICK[(int) i] = SECONDS_PER_REAL_SECOND[(int) i] * TICK_MS / 1000.0;
         }
     }
 
     /** 构造后默认启动速度（1 分钟/秒） */
-    private static final int DEFAULT_SPEED = 5;
+    private static final long DEFAULT_SPEED = 5;
 
     /* ==================== 模型 ==================== */
     private final time clock;
 
     private final TimeBus timeBus = new TimeBus();
 
-    private volatile int speed = 0;
-    private volatile int lastSpeed = DEFAULT_SPEED;
+    private volatile long speed = 0;
+    private volatile long lastSpeed = DEFAULT_SPEED;
 
     private double carry = 0;
     private final AtomicLong pendingSeconds = new AtomicLong(0);
@@ -113,7 +115,7 @@ public class huizhi extends JPanel {
     private final SpeedBar speedBar = new SpeedBar();
 
     private GradientPaint cachedGradient;
-    private int cachedGradientH = -1;
+    private long cachedGradientH = -1;
     private boolean cachedGradientPaused = false;
 
     private String lastDateText = null;
@@ -152,7 +154,7 @@ public class huizhi extends JPanel {
 
     public TimeBus getTimeBus() { return timeBus; }
 
-    public void setSpeed(int s) {
+    public void setSpeed(long s) {
         if (s < 0 || s > MAX_SPEED) {
             throw new IllegalArgumentException(
                     "速度只能是 0~" + MAX_SPEED + "，当前传入：" + s);
@@ -184,15 +186,15 @@ public class huizhi extends JPanel {
         });
     }
 
-    public int getSpeed() { return speed; }
+    public long getSpeed() { return speed; }
     public boolean isRunning() { return speed > 0; }
 
     /** 当前档位对应的"游戏秒/真实秒"（速度 0 返回 0） */
-    public double getSecondsPerRealSecond() { return SECONDS_PER_REAL_SECOND[speed]; }
+    public double getSecondsPerRealSecond() { return SECONDS_PER_REAL_SECOND[(int) speed]; }
 
     public void togglePause() {
         if (speed == 0) {
-            int ls = lastSpeed;
+            long ls = lastSpeed;
             setSpeed(ls == 0 ? 1 : ls);
         } else {
             setSpeed(0);
@@ -268,7 +270,7 @@ public class huizhi extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
-        int w = getWidth(), h = getHeight();
+        long w = getWidth(), h = getHeight();
         if (w <= 0 || h <= 0) return;
 
         boolean p = paused();
@@ -285,7 +287,7 @@ public class huizhi extends JPanel {
         Graphics2D g2 = (Graphics2D) g.create();
         try {
             g2.setPaint(cachedGradient);
-            g2.fillRect(0, 0, w, h);
+            g2.fillRect(0, 0, (int) w, (int) h);
         } finally {
             g2.dispose();
         }
@@ -294,10 +296,10 @@ public class huizhi extends JPanel {
     /* ==================== 心跳 ==================== */
 
     private void onTickBackground() {
-        int s = speed;
+        long s = speed;
         if (s <= 0) return;
 
-        carry += SECONDS_PER_TICK[s];
+        carry += SECONDS_PER_TICK[(int) s];
         long whole = (long) carry;
         if (whole <= 0L) return;
         carry -= whole;
@@ -358,7 +360,7 @@ public class huizhi extends JPanel {
         }
     }
 
-    private static void append2(StringBuilder sb, int v) {
+    private static void append2(StringBuilder sb, long v) {
         if (v < 10) sb.append('0');
         sb.append(v);
     }
@@ -372,18 +374,18 @@ public class huizhi extends JPanel {
 
     private class SpeedBar extends JComponent {
 
-        private static final int GAP      = 4;    // 刻度间距
-        private static final int SLOT_W   = 8;    // 单刻度宽
-        private static final int PAUSE_W  = 20;   // 播放/暂停按钮宽
-        private static final int BAR_H    = 30;   // 组件高
+        private static final long GAP      = 4;    // 刻度间距
+        private static final long SLOT_W   = 8;    // 单刻度宽
+        private static final long PAUSE_W  = 20;   // 播放/暂停按钮宽
+        private static final long BAR_H    = 30;   // 组件高
 
-        private int hover = -1;
+        private long hover = -1;
 
         SpeedBar() {
-            int totalW = PAUSE_W + GAP
+            long totalW = PAUSE_W + GAP
                     + MAX_SPEED * SLOT_W
                     + (MAX_SPEED - 1) * GAP;
-            Dimension d = new Dimension(totalW, BAR_H);
+            Dimension d = new Dimension((int) totalW, (int) BAR_H);
             setPreferredSize(d);
             setMinimumSize(d);
             setMaximumSize(d);
@@ -392,14 +394,14 @@ public class huizhi extends JPanel {
             MouseAdapter ma = new MouseAdapter() {
                 @Override
                 public void mousePressed(MouseEvent e) {
-                    int idx = hitTest(e.getX());
+                    long idx = hitTest(e.getX());
                     if (idx == 0) togglePause();
                     else if (idx > 0) setSpeed(idx);
                 }
 
                 @Override
                 public void mouseMoved(MouseEvent e) {
-                    int idx = hitTest(e.getX());
+                    long idx = hitTest(e.getX());
                     if (idx != hover) {
                         hover = idx;
                     }
@@ -416,10 +418,10 @@ public class huizhi extends JPanel {
             addMouseMotionListener(ma);
         }
 
-        private int hitTest(int x) {
+        private long hitTest(long x) {
             if (x >= 0 && x < PAUSE_W) return 0;
-            for (int i = 1; i <= MAX_SPEED; i++) {
-                int x0 = PAUSE_W + GAP + (i - 1) * (SLOT_W + GAP);
+            for (long i = 1; i <= MAX_SPEED; i++) {
+                long x0 = PAUSE_W + GAP + (i - 1) * (SLOT_W + GAP);
                 if (x >= x0 && x < x0 + SLOT_W) return i;
             }
             return -1;
@@ -434,15 +436,15 @@ public class huizhi extends JPanel {
                 g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL,
                         RenderingHints.VALUE_STROKE_PURE);
 
-                int bottom = getHeight() - 3;
+                long bottom = getHeight() - 3;
                 paintPlayPause(g2, bottom);
 
-                for (int i = 1; i <= MAX_SPEED; i++) {
-                    int x0 = PAUSE_W + GAP + (i - 1) * (SLOT_W + GAP);
+                for (long i = 1; i <= MAX_SPEED; i++) {
+                    long x0 = PAUSE_W + GAP + (i - 1) * (SLOT_W + GAP);
 
                     // 高度 8 → 28 线性递增
-                    int barH = 7 + (i * 21) / MAX_SPEED;
-                    int y0 = bottom - barH;
+                    long barH = 7 + (i * 21) / MAX_SPEED;
+                    long y0 = bottom - barH;
 
                     boolean active  = i <= speed;
                     boolean hovered = (hover == i);
@@ -454,11 +456,11 @@ public class huizhi extends JPanel {
                     } else {
                         g2.setColor(colAccentDim());
                     }
-                    g2.fillRoundRect(x0, y0, SLOT_W, barH, 3, 3);
+                    g2.fillRoundRect((int) x0, (int) y0, (int) SLOT_W, (int) barH, 3, 3);
 
                     if (hovered && !active) {
                         g2.setColor(colAccent());
-                        g2.drawRoundRect(x0, y0, SLOT_W, barH, 3, 3);
+                        g2.drawRoundRect((int) x0, (int) y0, (int) SLOT_W, (int) barH, 3, 3);
                     }
                 }
             } finally {
@@ -466,27 +468,27 @@ public class huizhi extends JPanel {
             }
         }
 
-        private void paintPlayPause(Graphics2D g2, int bottom) {
-            int size = PAUSE_W;
-            int y0 = bottom - size;
+        private void paintPlayPause(Graphics2D g2, long bottom) {
+            long size = PAUSE_W;
+            long y0 = bottom - size;
             boolean hov = (hover == 0);
 
             g2.setColor(hov ? colSlotHover() : colSlotBg());
-            g2.fillRoundRect(0, y0, size, size, 4, 4);
+            g2.fillRoundRect(0, (int) y0, (int) size, (int) size, 4, 4);
             g2.setColor(hov ? colAccent() : colBorder());
-            g2.drawRoundRect(0, y0, size, size, 4, 4);
+            g2.drawRoundRect(0, (int) y0, (int) size, (int) size, 4, 4);
 
             g2.setColor(colAccent());
             if (speed == 0) {
                 // 暂停中 → 显示 ▶
                 g2.fillPolygon(
                         new int[]{7, 7, 15},
-                        new int[]{y0 + 5, y0 + 15, y0 + 10},
+                        new int[]{(int) (y0 + 5), (int) (y0 + 15), (int) (y0 + 10)},
                         3);
             } else {
                 // 运行中 → 显示 ‖
-                g2.fillRoundRect(6, y0 + 5, 3, 10, 1, 1);
-                g2.fillRoundRect(11, y0 + 5, 3, 10, 1, 1);
+                g2.fillRoundRect(6, (int) (y0 + 5), 3, 10, 1, 1);
+                g2.fillRoundRect(11, (int) (y0 + 5), 3, 10, 1, 1);
             }
         }
     }
@@ -497,17 +499,17 @@ public class huizhi extends JPanel {
             JFrame frame = bianliang.gameframe;
             if (frame == null) return;
 
-            huizhi panel = new huizhi(new time(1936, 1, 1, 0, 0, 0));
-            panel.getTimeBus().register(new MyListener());
+
+            TIME.getTimeBus().register(new MyListener());
             Container content = frame.getContentPane();
             if (content.getLayout() == null) {
-                content.add(panel.getComponent());
-                Dimension d = panel.getComponent().getPreferredSize();
-                panel.getComponent().setBounds(
+                content.add(TIME.getComponent());
+                Dimension d = TIME.getComponent().getPreferredSize();
+                TIME.getComponent().setBounds(
                         frame.getWidth() - d.width - 10, 10,
                         d.width, d.height);
             } else {
-                frame.add(panel.getComponent(), BorderLayout.NORTH);
+                frame.add(TIME.getComponent(), BorderLayout.NORTH);
             }
             frame.revalidate();
         });

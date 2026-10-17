@@ -1,5 +1,6 @@
 package neirong.shijian;
 
+import caozuo.bing_caozuo;
 import neirong.bianliang.bingpai.bingmoshuju;
 import neirong.gongju.pingmujilei.XYBoard;
 import neirong.gongju.bianliang;
@@ -13,6 +14,7 @@ import neirong.bianliang.guojia.country;
 import neirong.bianliang.zuobiao.zuobiao;
 import shunxu.third_shijianpaifaqiqidong.SubscribeEvent;
 import shunxu.third_shijianpaifaqiqidong.shijian.*;
+import uk.ac.manchester.tornado.api.annotations.Parallel;
 
 import java.awt.*;
 import java.time.Duration;
@@ -27,6 +29,7 @@ public class MyListener {
     @SubscribeEvent
     public void onJoin(beixuanze_DUOXUAN event) {
 
+        System.out.println(1);
         event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
                 event.xuanding.jingdu, event.xuanding.weidu,
                 event.xuanding.tasktogo.x, event.xuanding.tasktogo.y);
@@ -35,7 +38,7 @@ public class MyListener {
 
     @SubscribeEvent
     public void quxiao(beiquxiao_DUOXUAN event) {
-
+        bing_caozuo.guan();
         board.removeLiveLine(event.xuanding.suoshulujingzhixianbianhao);
         event.xuanding.quxiaolansebiankuang();
     }
@@ -43,14 +46,14 @@ public class MyListener {
     @SubscribeEvent
     public void onJoin_TUOXUAN(youjiankuangxuan event) {
         xuandingbianliang.add(event.xuanding);
-
+        bing_caozuo.kai();
         event.xuanding.suoshulujingzhixianbianhao = board.addLiveLine(
                 event.xuanding.jingdu, event.xuanding.weidu,
                 event.xuanding.tasktogo.x, event.xuanding.tasktogo.y);
         event.xuanding.xianshilansebiankuang();
     }
 
-    int jishu = 0;
+    long jishu = 0;
 
     @OnTimeChange
     public void yizhen(Duration shichang) throws InterruptedException {
@@ -62,10 +65,10 @@ public class MyListener {
 
         // 2. 为每个元素创建 Callable 任务
         List<Callable<Void>> renwuLie = new ArrayList<>();
-        for (country guojiaXiang : countries) {
-            for (BINGPAI bingpai : guojiaXiang.jundui) {
+        for (@Parallel country guojiaXiang : countries) {
+            for ( BINGPAI bingpai : guojiaXiang.jundui) {
                 renwuLie.add(() -> {
-                    for (int a1 = 0; a1 != shichang.getSeconds(); a1++) {
+                    for (long a1 = 0; a1 != shichang.getSeconds(); a1++) {
                         bingpai.tick();
                     }
                     return null;
@@ -124,7 +127,7 @@ public class MyListener {
             sub.setWorldPainter((g2, b) -> {
                 g2.setColor(new Color(200, 200, 200));
                 double[] p = b.worldToScreen(0, 0);
-                g2.fillOval((int) p[0] - 5, (int) p[1] - 5, 10, 10);
+                g2.fillOval((int) ((long) p[0] - 5), (int) ((long) p[1] - 5), 10, 10);
             });
             sub.setBounds(40, 40, 320, 220);
             gongju.tanchuyemian(new tuodongkuang(sub),10,10);        // 默认 BorderLayout.CENTER，会占满
@@ -133,7 +136,7 @@ public class MyListener {
 
 
 // 挂到北京
-     //       gongju.tanchuyemian(sub);
+            //       gongju.tanchuyemian(sub);
             neirong.returnwenzi = "0";
         }
     }
@@ -155,5 +158,14 @@ public class MyListener {
         a.addNumber(-1);
         b.kapianyanse = Color.BLACK;
         b.addNumber(-1);
+    }
+    @SubscribeEvent
+    public void xuanze(beixuanze_DUOXUAN a){
+        bing_caozuo.kai();
+        System.out.println(1);
+    }
+    @SubscribeEvent
+    public void guanbi(beiquxiao_DUOXUAN a){
+        bing_caozuo.guan();
     }
 }

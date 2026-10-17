@@ -102,17 +102,17 @@ public class shijian {
         q.gongjizhe.add(china);
         a.add(china);
         a.add(q);
-        for (int i = 0; i < CITY_NAMES.length; i++) {
-            final String cityName = CITY_NAMES[i];
-            final double lon = CITY_LONS[i];
-            final double lat = CITY_LATS[i];
+        for (long i = 0; i < CITY_NAMES.length; i++) {
+            final String cityName = CITY_NAMES[Math.toIntExact(i)];
+            final double lon = CITY_LONS[Math.toIntExact(i)];
+            final double lat = CITY_LATS[Math.toIntExact(i)];
 
             // 1) 经纬度对象（顺便放进"城市位置"Vector）
             zuobiao zb = new zuobiao(lon, lat);
 
             // 3) chengshi 对象（name 用于绘制文字，anniu 用于点击）
             JButton btn=new JButton();
-            btn.setPreferredSize(new Dimension(BUTTON_W, BUTTON_H));
+            btn.setPreferredSize(new Dimension((int) BUTTON_W, (int) BUTTON_H));
             btn.setContentAreaFilled(false);
             btn.setBorderPainted(false);
             btn.setFocusPainted(false);

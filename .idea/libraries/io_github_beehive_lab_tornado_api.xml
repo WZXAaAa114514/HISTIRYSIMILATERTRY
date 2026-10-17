@@ -1,0 +1,15 @@
+<component name="libraryTable">
+  <library name="io.github.beehive.lab.tornado.api" type="repository">
+    <properties maven-id="io.github.beehive-lab:tornado-api:7.3.0-jdk21" />
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/io/github/beehive-lab/tornado-api/7.3.0-jdk21/tornado-api-7.3.0-jdk21.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/apache/logging/log4j/log4j-api/2.25.5/log4j-api-2.25.5.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/apache/logging/log4j/log4j-core/2.25.4/log4j-core-2.25.4.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/graalvm/sdk/word/23.1.0/word-23.1.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/graalvm/sdk/collections/23.1.0/collections-23.1.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/graalvm/truffle/truffle-compiler/23.1.0/truffle-compiler-23.1.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

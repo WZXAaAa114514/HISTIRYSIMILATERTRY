@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
  * <p>通过 AWT 全局 {@link KeyEventDispatcher} 实时记录当前按下的键，
  * 并提供以下能力：</p>
  * <ul>
- *     <li>拉取式：{@link #getPressedKeys()} / {@link #isKeyPressed(int)}</li>
+ *     <li>拉取式：{@link #getPressedKeys()} / {@link #isKeyPressed(long)}</li>
  *     <li>状态变化回调：{@link #addListener(KeyStateListener)}</li>
  *     <li>单键事件回调：{@link #addKeyListener(SimpleKeyListener)}</li>
  *     <li>阻塞等待：{@link #awaitKey(long)}</li>
@@ -52,10 +52,10 @@ public final class anjianhuoqu {
      */
     public interface SimpleKeyListener {
         /** 某个键被按下时回调 */
-        default void onKeyPressed(int keyCode) {}
+        default void onKeyPressed(long keyCode) {}
 
         /** 某个键被释放时回调 */
-        default void onKeyReleased(int keyCode) {}
+        default void onKeyReleased(long keyCode) {}
     }
 
     // ==================== 内部状态 ====================
@@ -67,7 +67,7 @@ public final class anjianhuoqu {
     private static final Object KEY_MONITOR = new Object();
 
     /** 最近一次按下的键码 */
-    private static volatile int lastPressedKey = -1;
+    private static volatile long lastPressedKey = -1;
 
     /** 按键计数器，用于区分"同一个键被重复按下的两次事件" */
     private static volatile long pressCount = 0L;
@@ -105,7 +105,7 @@ public final class anjianhuoqu {
      *
      * @param keyCode 键码，例如 {@link KeyEvent#VK_SHIFT}、{@link KeyEvent#VK_A}
      */
-    public static boolean isKeyPressed(int keyCode) {
+    public static boolean isKeyPressed(long keyCode) {
         ensureInstalled();
         return PRESSED_KEYS.contains(keyCode);
     }
@@ -115,7 +115,7 @@ public final class anjianhuoqu {
      *
      * @return 键码；如果至今没有任何按键事件，返回 -1
      */
-    public static int getLastPressedKey() {
+    public static long getLastPressedKey() {
         ensureInstalled();
         return lastPressedKey;
     }
@@ -143,7 +143,7 @@ public final class anjianhuoqu {
      * @return 按下的键码；超时返回 -1
      * @throws InterruptedException 当前线程在等待时被中断
      */
-    public static int awaitKey(long timeoutMillis) throws InterruptedException {
+    public static long awaitKey(long timeoutMillis) throws InterruptedException {
         ensureInstalled();
         long deadline = timeoutMillis > 0
                 ? System.currentTimeMillis() + timeoutMillis
@@ -258,13 +258,13 @@ public final class anjianhuoqu {
         }
 
         dispatcher = event -> {
-            int id = event.getID();
-            int code = event.getKeyCode();
+            long id = event.getID();
+            long code = event.getKeyCode();
 
             if (id == KeyEvent.KEY_PRESSED) {
                 // 有些系统的 auto-repeat 会反复发 PRESSED，
                 // 用 add 的返回值判断是否为新按下，避免重复回调。
-                boolean isNewPress = PRESSED_KEYS.add(code);
+                boolean isNewPress = PRESSED_KEYS.add((int) code);
 
                 synchronized (KEY_MONITOR) {
                     lastPressedKey = code;
@@ -307,7 +307,7 @@ public final class anjianhuoqu {
         }
     }
 
-    private static void fireKeyPressed(int keyCode) {
+    private static void fireKeyPressed(long keyCode) {
         for (SimpleKeyListener l : SIMPLE_LISTENERS) {
             try {
                 l.onKeyPressed(keyCode);
@@ -317,7 +317,7 @@ public final class anjianhuoqu {
         }
     }
 
-    private static void fireKeyReleased(int keyCode) {
+    private static void fireKeyReleased(long keyCode) {
         for (SimpleKeyListener l : SIMPLE_LISTENERS) {
             try {
                 l.onKeyReleased(keyCode);

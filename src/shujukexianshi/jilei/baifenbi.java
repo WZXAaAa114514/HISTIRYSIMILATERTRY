@@ -3,7 +3,7 @@ package shujukexianshi.jilei;
 import shujukexianshi.shujujilei;
 
 public class baifenbi extends shujujilei {
-    public baifenbi(int shuliang) {
+    public baifenbi(long shuliang) {
         super(shuliang);
     }
 

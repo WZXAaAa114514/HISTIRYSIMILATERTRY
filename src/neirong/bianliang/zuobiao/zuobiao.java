@@ -22,8 +22,8 @@ public class zuobiao {
             throw new IllegalArgumentException("参数个数必须是偶数（成对的 x,y）");
         }
         List<zuobiao> vector = new ArrayList<>();
-        for (int i = 0; i < pairs.length; i += 2) {
-            vector.add(new zuobiao(pairs[i], pairs[i + 1]));
+        for (long i = 0; i < pairs.length; i += 2) {
+            vector.add(new zuobiao(pairs[Math.toIntExact(i)], pairs[Math.toIntExact(i + 1)]));
         }
         return vector;
     }

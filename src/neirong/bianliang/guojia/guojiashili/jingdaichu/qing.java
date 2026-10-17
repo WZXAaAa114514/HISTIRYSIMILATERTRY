@@ -14,8 +14,19 @@ import static neirong.gongju.bianliang.*;
 public class qing extends country {
 
     public qing() {
-        JButton btn=new JButton();
-        btn.setPreferredSize(new Dimension(BUTTON_W, BUTTON_H));
+        super(countrys.QING.get(),
+                Color.YELLOW,
+                new chengshi(new zuobiao(116.40, 39.90), createBtn(), "北京"));
+
+        jundui.add(new BINGPAI((Image) null, 10, "a", 200.40, 39.90, this,
+                new bingmoshuju(300, 0.3), Color.yellow));
+
+        this.ischuchang = true;
+    }
+
+    private static JButton createBtn() {
+        JButton btn = new JButton();
+        btn.setPreferredSize(new Dimension((int) BUTTON_W, Math.toIntExact(BUTTON_H)));
         btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
@@ -23,11 +34,6 @@ public class qing extends country {
         btn.setFocusable(false);
         btn.addActionListener(e ->
                 JOptionPane.showMessageDialog(board, "点击了：" + "首都"));
-
-
-        super(countrys.QING.get(), Color.YELLOW, new chengshi(new zuobiao(116.40,39.90),btn,"北京"));
-        jundui.add(new BINGPAI((Image) null,10,"a",200.40,39.90,this,new bingmoshuju(300,0.3),Color.yellow));
-
-        this.ischuchang=true;
+        return btn;
     }
 }

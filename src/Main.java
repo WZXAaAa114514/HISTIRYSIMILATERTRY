@@ -5,6 +5,8 @@ import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
 import neirong.gongju.pingmujilei.XYBoard;
 import neirong.gongju.pingmujilei.tuodongkuang;
+import neirong.gongju.yemian.danchu;
+import neirong.gongju.yemian.danru;
 import shunxu.anjianhuoqu.anjianhuoqu;
 import shunxu.first_daoruguojia.first_daoruguojia;
 import shunxu.third_shijianpaifaqiqidong.EventBus;
@@ -15,9 +17,7 @@ import shunxu.xuanranqi_FRAMEdingyi;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.KeyEvent;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
+import java.awt.event.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,8 +31,10 @@ public class Main {
         board.setGuijishifoukangjuchi(false);
         javax.swing.Timer timer = new javax.swing.Timer(1, e -> {
             // 统一 tick 所有 BINGPAI，每个只 tick 一次
-
-
+            zhuyemian.repaint();
+            TIME.repaint();
+            diejiaceng.repaint();
+            gameframe.repaint();
             board.repaint();
         });
         timer.start();
@@ -68,14 +70,13 @@ public class Main {
         sub.setWorldPainter((g2, b) -> {
             g2.setColor(Color.WHITE);
             double[] p = b.worldToScreen(0, 0);
-            g2.fillOval((int) p[0] - 5, (int) p[1] - 5, 10, 10);
+            g2.fillOval((int) ((long) p[0] - 5), Math.toIntExact((long) p[1] - 5), 10, 10);
         });
         Thread.sleep(1000);
         diejiaceng.setDoubleBuffered(true);
         bianliang.gameframe.setGlassPane(diejiaceng);
         diejiaceng.setVisible(true);
-        bing_caozuo a=new bing_caozuo();
-        a.kai();
+
 
 
 

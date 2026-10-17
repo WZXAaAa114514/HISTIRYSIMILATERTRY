@@ -14,8 +14,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class time {
 
-    public record fengzhuangshijian(int year, int month, int day,
-                                    int hour, int minute, int second) {
+    public record fengzhuangshijian(long year, long month, long day,
+                                    long hour, long minute, long second) {
         @Override
         public String toString() {
             return String.format("%04d-%02d-%02d %02d:%02d:%02d",
@@ -36,9 +36,9 @@ public class time {
     private volatile TickListener tickListener;
     private volatile Runnable finishListener;
 
-    public time(int year, int month, int day,
-                int hour, int minute, int second) {
-        this(LocalDateTime.of(year, month, day, hour, minute, second));
+    public time(long year, long month, long day,
+                long hour, long minute, long second) {
+        this(LocalDateTime.of((int) year, (int) month, (int) day, (int) hour, (int) minute, (int) second));
     }
 
     public time(LocalDateTime targetTime) {
@@ -93,12 +93,12 @@ public class time {
                 t.getHour(), t.getMinute(), t.getSecond());
     }
 
-    public int getYear()   { synchronized (lock) { return targetTime.getYear(); } }
-    public int getMonth()  { synchronized (lock) { return targetTime.getMonthValue(); } }
-    public int getDay()    { synchronized (lock) { return targetTime.getDayOfMonth(); } }
-    public int getHour()   { synchronized (lock) { return targetTime.getHour(); } }
-    public int getMinute() { synchronized (lock) { return targetTime.getMinute(); } }
-    public int getSecond() { synchronized (lock) { return targetTime.getSecond(); } }
+    public long getYear()   { synchronized (lock) { return targetTime.getYear(); } }
+    public long getMonth()  { synchronized (lock) { return targetTime.getMonthValue(); } }
+    public long getDay()    { synchronized (lock) { return targetTime.getDayOfMonth(); } }
+    public long getHour()   { synchronized (lock) { return targetTime.getHour(); } }
+    public long getMinute() { synchronized (lock) { return targetTime.getMinute(); } }
+    public long getSecond() { synchronized (lock) { return targetTime.getSecond(); } }
 
     public LocalDateTime getTargetTime() {
         synchronized (lock) { return targetTime; }

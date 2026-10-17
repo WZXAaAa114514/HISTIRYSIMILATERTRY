@@ -9,9 +9,9 @@ import java.util.function.Consumer;
 public class EventBus {
 
     private static final class ListenerNode {
-        final int priority;
+        final long priority;
         final Consumer<Object> consumer;
-        ListenerNode(int priority, Consumer<Object> consumer) {
+        ListenerNode(long priority, Consumer<Object> consumer) {
             this.priority = priority;
             this.consumer = consumer;
         }
@@ -50,7 +50,7 @@ public class EventBus {
                         ? new ArrayList<>()
                         : new ArrayList<>(Arrays.asList(oldArr));
                 list.add(node);
-                list.sort((a, b) -> Integer.compare(b.priority, a.priority));
+                list.sort((a, b) -> Integer.compare((int) b.priority, Math.toIntExact(a.priority)));
                 return list.toArray(new ListenerNode[0]);
             });
         }

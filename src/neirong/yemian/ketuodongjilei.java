@@ -44,13 +44,13 @@ public class ketuodongjilei extends JPanel {
                     // 当前鼠标屏幕位置
                     Point currentScreenPoint = e.getLocationOnScreen();
                     // 计算鼠标位移
-                    int dx = currentScreenPoint.x - pressedScreenPoint.x;
-                    int dy = currentScreenPoint.y - pressedScreenPoint.y;
+                    long dx = currentScreenPoint.x - pressedScreenPoint.x;
+                    long dy = currentScreenPoint.y - pressedScreenPoint.y;
                     // 新位置 = 起始位置 + 位移
-                    int newX = startLocation.x + dx;
-                    int newY = startLocation.y + dy;
+                    long newX = startLocation.x + dx;
+                    long newY = startLocation.y + dy;
                     // 移动面板（需要父容器使用 null 布局）
-                    setLocation(newX, newY);
+                    setLocation((int) newX, Math.toIntExact(newY));
                 }
             }
 

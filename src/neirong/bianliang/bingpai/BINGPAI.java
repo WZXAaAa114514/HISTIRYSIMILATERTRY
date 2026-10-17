@@ -21,8 +21,8 @@ import static neirong.gongju.bianliang.*;
 public class BINGPAI extends JButton implements canchosemany {
 
     /* ==================== 设计基准（5:2 宽高比） ==================== */
-    private static final int JICHU_KUAN = 100;
-    private static final int JICHU_GAO = 40;
+    private static final long JICHU_KUAN = 100;
+    private static final long JICHU_GAO = 40;
 
     /* ==================== 默认配色 ==================== */
     private static final Color MOREN_KAPIANYANSE    = new Color(0x5B6B3D);
@@ -35,11 +35,11 @@ public class BINGPAI extends JButton implements canchosemany {
 
     @Live(Live.Role.LON) public double jingdu;
     @Live(Live.Role.LAT) public double weidu;
-    public int bianhao;
+    public long bianhao;
 
     /* ==================== 数据字段 ==================== */
     private Image  tubiao;
-    private int    shuliang      = 0;
+    private long    shuliang      = 0;
     private String fuwenben      = "";
     public Color  kapianyanse   = MOREN_KAPIANYANSE;
     private Color  biankuangyanse = MOREN_BIANKUANGYANSE;
@@ -53,7 +53,7 @@ public class BINGPAI extends JButton implements canchosemany {
     public country guojia;
     public bingmoshuju shuju;
     public zuobiao tasktogo = new zuobiao(0, 0);
-    public int suoshulujingzhixianbianhao;
+    public long suoshulujingzhixianbianhao;
 
     /* ==================== 蓝色加粗边框高亮 ==================== */
     private boolean lanseCubiankuang = false;
@@ -105,6 +105,7 @@ public class BINGPAI extends JButton implements canchosemany {
 
     /* ============================================================
      *  ★ 高频 tick 优化：累加步数 + 时间窗口一次性执行
+     *  （GPU 模式下不再由 yizhen 调用，保留供单兵手动 tick 使用）
      * ============================================================ */
     private final AtomicInteger daichuliZhenShu = new AtomicInteger(0);
     private volatile long shangciShuaxinNamia = 0L;
@@ -121,7 +122,7 @@ public class BINGPAI extends JButton implements canchosemany {
 
         shangciShuaxinNamia = xianzai;
 
-        int bushu = daichuliZhenShu.getAndSet(0);
+        long bushu = daichuliZhenShu.getAndSet(0);
         if (bushu <= 0) return;
         double jingdu = this.jingdu;
         double weidu = this.weidu;
@@ -131,9 +132,22 @@ public class BINGPAI extends JButton implements canchosemany {
         } catch (Throwable t) {
             // 单帧异常不影响后续帧
         }
-        this.tasktogo.x=new Random().nextDouble(-180,180);
-        this.tasktogo.y=new Random().nextDouble(-180,180);
+
         tick_go(jingdu, weidu, this.jingdu, this.weidu);
+    }
+
+    /* ============================================================
+     *  ★ GPU 调度器专用入口
+     *  位置已由 GPU 内核 1 批量更新完毕，这里只做主机端副作用：
+     *  轨迹段追加 + 当前点同步。不做任何数值计算。
+     * ============================================================ */
+    public void applyTickResult() {
+        try {
+            maybeAddTrailSegment();
+            syncCurrentDot();
+        } catch (Throwable t) {
+            // 单帧异常不影响后续帧
+        }
     }
 
     /* ============================================================
@@ -143,7 +157,6 @@ public class BINGPAI extends JButton implements canchosemany {
     /**
      * 处理一次位置变化。
      * 默认留空，因为轨迹段与路径点已在 goto_MEIYIZHENZHIXING 内部处理。
-     * 如需在此处扩展逻辑（如记录位移、触发事件等），可重写或修改此方法。
      *
      * @param aJingdu 移动前经度
      * @param aWeidu 移动前纬度
@@ -195,8 +208,13 @@ public class BINGPAI extends JButton implements canchosemany {
                         qianJingdu, qianWeidu, houJingdu, houWeidu,
                         bingpai.jingdu, bingpai.weidu, shuju.fanwei)) {
 
-                    if(bingpai.shuju.zhudongxing>this.shuju.zhudongxing) {EVENTMAIN.post(new gongji(this,bingpai));break;}
-                    else  {EVENTMAIN.post(new gongji(bingpai,this));break;}
+                    if (bingpai.shuju.zhudongxing > this.shuju.zhudongxing) {
+                        EVENTMAIN.post(new gongji(this, bingpai));
+                        break;
+                    } else {
+                        EVENTMAIN.post(new gongji(bingpai, this));
+                        break;
+                    }
                 }
             }
         }
@@ -206,7 +224,7 @@ public class BINGPAI extends JButton implements canchosemany {
      *  ★ 构造函数
      * ============================================================ */
     public BINGPAI(Image tubiao,
-                   int shuliang,
+                   long shuliang,
                    String fuwenben,
                    double jingdu,
                    double weidu,
@@ -241,30 +259,30 @@ public class BINGPAI extends JButton implements canchosemany {
         applyScale();
     }
 
-    public BINGPAI(Image tubiao, int shuliang, double jingdu, double weidu,
+    public BINGPAI(Image tubiao, long shuliang, double jingdu, double weidu,
                    country guojia, bingmoshuju shuju, Color kapianyanse) {
         this(tubiao, shuliang, "", jingdu, weidu, guojia, shuju, kapianyanse);
     }
 
-    public BINGPAI(ImageIcon tubiao, int shuliang, String fuwenben,
+    public BINGPAI(ImageIcon tubiao, long shuliang, String fuwenben,
                    double jingdu, double weidu,
                    country guojia, bingmoshuju shuju, Color kapianyanse) {
         this(tubiao == null ? null : tubiao.getImage(), shuliang, fuwenben,
                 jingdu, weidu, guojia, shuju, kapianyanse);
     }
 
-    public BINGPAI(Image tubiao, int shuliang, double jingdu, double weidu,
+    public BINGPAI(Image tubiao, long shuliang, double jingdu, double weidu,
                    country guojia, bingmoshuju shuju) {
         this(tubiao, shuliang, "", jingdu, weidu, guojia, shuju, MOREN_KAPIANYANSE);
     }
 
-    public BINGPAI(Image tubiao, int shuliang, String fuwenben,
+    public BINGPAI(Image tubiao, long shuliang, String fuwenben,
                    double jingdu, double weidu,
                    country guojia, bingmoshuju shuju) {
         this(tubiao, shuliang, fuwenben, jingdu, weidu, guojia, shuju, MOREN_KAPIANYANSE);
     }
 
-    public BINGPAI(ImageIcon tubiao, int shuliang, String fuwenben,
+    public BINGPAI(ImageIcon tubiao, long shuliang, String fuwenben,
                    double jingdu, double weidu,
                    country guojia, bingmoshuju shuju) {
         this(tubiao == null ? null : tubiao.getImage(), shuliang, fuwenben,
@@ -280,9 +298,9 @@ public class BINGPAI extends JButton implements canchosemany {
     }
 
     private void applyScale() {
-        int kuan = Math.max(1, (int) Math.round(JICHU_KUAN * jiemianSuofang));
-        int gao  = Math.max(1, (int) Math.round(JICHU_GAO * jiemianSuofang));
-        Dimension chicun = new Dimension(kuan, gao);
+        long kuan = Math.max(1, (long) Math.round(JICHU_KUAN * jiemianSuofang));
+        long gao  = Math.max(1, (long) Math.round(JICHU_GAO * jiemianSuofang));
+        Dimension chicun = new Dimension((int) kuan, Math.toIntExact(gao));
         setPreferredSize(chicun);
         setSize(chicun);
         revalidate();
@@ -292,9 +310,9 @@ public class BINGPAI extends JButton implements canchosemany {
     public Image getIconImage() { return tubiao; }
     public void setIconImage(Image tubiao) { this.tubiao = tubiao; }
 
-    public int getNumber() { return shuliang; }
-    public void setNumber(int shuliang) { this.shuliang = shuliang; }
-    public void addNumber(int zengliang) { setNumber(this.shuliang + zengliang); }
+    public long getNumber() { return shuliang; }
+    public void setNumber(long shuliang) { this.shuliang = shuliang; }
+    public void addNumber(long zengliang) { setNumber(this.shuliang + zengliang); }
 
     public String getSubText() { return fuwenben; }
     public void setSubText(String fuwenben) {
@@ -309,7 +327,7 @@ public class BINGPAI extends JButton implements canchosemany {
     }
 
     public void setColor(Color yanse) { setCardColor(yanse); }
-    public void setColor(int yansezhi) { setCardColor(new Color(yansezhi, true)); }
+    public void setColor(long yansezhi) { setCardColor(new Color((int) yansezhi, true)); }
     public Color getColor() { return kapianyanse; }
 
     public Color getBorderColor() { return biankuangyanse; }
@@ -393,7 +411,7 @@ public class BINGPAI extends JButton implements canchosemany {
         if (fuwenbenZiti != null) { this.fuwenbenZiti = fuwenbenZiti; }
     }
 
-    public void setCardSize(int kuan, int gao) {
+    public void setCardSize(long kuan, long gao) {
         double suofang = Math.min(kuan / (double) JICHU_KUAN,
                 gao / (double) JICHU_GAO);
         setUiScale(suofang);
@@ -433,15 +451,15 @@ public class BINGPAI extends JButton implements canchosemany {
         tuxing2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING,
                 RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-        int kuan = getWidth();
-        int gao  = getHeight();
+        long kuan = getWidth();
+        long gao  = getHeight();
         if (kuan <= 0 || gao <= 0) { tuxing2.dispose(); return; }
 
         Color jichu = kapianyanse;
         if (getModel().isPressed())       jichu = jichu.darker();
         else if (getModel().isRollover()) jichu = jichu.brighter();
         tuxing2.setColor(jichu);
-        tuxing2.fillRect(0, 0, kuan, gao);
+        tuxing2.fillRect(0, 0, (int) kuan, Math.toIntExact(gao));
 
         float suofang = Math.min(kuan / (float) JICHU_KUAN,
                 gao / (float) JICHU_GAO);
@@ -453,9 +471,9 @@ public class BINGPAI extends JButton implements canchosemany {
         float pianyiZong = (gao - huizhiGao) / 2f;
         tuxing2.translate(pianyiHeng, pianyiZong);
 
-        int juxingKuan = Math.round(huizhiKuan);
-        int juxingGao  = Math.round(huizhiGao);
-        int xiangsu1   = Math.max(1, Math.round(1 * suofang));
+        long juxingKuan = Math.round(huizhiKuan);
+        long juxingGao  = Math.round(huizhiGao);
+        long xiangsu1   = Math.max(1, Math.round(1 * suofang));
 
         float huaxianKuandu = Math.max(1f, (yixuanzhong ? 3f : 2f) * suofang);
         Color huaxianYanse  = yixuanzhong ? Color.YELLOW : biankuangyanse;
@@ -465,32 +483,32 @@ public class BINGPAI extends JButton implements canchosemany {
             huaxianYanse  = lanseCubiankuangYanse;
         }
 
-        int neisuo = Math.max(1, Math.round(huaxianKuandu / 2f));
+        long neisuo = Math.max(1, Math.round(huaxianKuandu / 2f));
         tuxing2.setColor(huaxianYanse);
         tuxing2.setStroke(new BasicStroke(huaxianKuandu));
-        tuxing2.drawRect(neisuo, neisuo,
-                Math.max(1, juxingKuan - neisuo * 2 - 1),
-                Math.max(1, juxingGao - neisuo * 2 - 1));
+        tuxing2.drawRect((int) neisuo, (int) neisuo,
+                (int) Math.max(1, juxingKuan - neisuo * 2 - 1),
+                (int) Math.max(1, juxingGao - neisuo * 2 - 1));
 
         if (tubiao != null) {
-            int tubiaoHeng = Math.round(6 * suofang);
-            int tubiaoZong = Math.round(8 * suofang);
-            int tubiaoKuan = Math.max(4, Math.round(30 * suofang));
-            int tubiaoGao  = Math.max(3, Math.round(20 * suofang));
-            tuxing2.drawImage(tubiao, tubiaoHeng, tubiaoZong,
-                    tubiaoKuan, tubiaoGao, this);
+            long tubiaoHeng = Math.round(6 * suofang);
+            long tubiaoZong = Math.round(8 * suofang);
+            long tubiaoKuan = Math.max(4, Math.round(30 * suofang));
+            long tubiaoGao  = Math.max(3, Math.round(20 * suofang));
+            tuxing2.drawImage(tubiao, (int) tubiaoHeng, (int) tubiaoZong,
+                    (int) tubiaoKuan, (int) tubiaoGao, this);
             tuxing2.setColor(new Color(0x00000055));
             tuxing2.setStroke(new BasicStroke(Math.max(1f, suofang)));
-            tuxing2.drawRect(tubiaoHeng, tubiaoZong,
-                    tubiaoKuan - xiangsu1, tubiaoGao - xiangsu1);
+            tuxing2.drawRect((int) tubiaoHeng, Math.toIntExact(tubiaoZong),
+                    (int) (tubiaoKuan - xiangsu1), Math.toIntExact(tubiaoGao - xiangsu1));
         }
 
         String shuziZiFu = String.valueOf(shuliang);
         tuxing2.setFont(shuziZiti.deriveFont(shuziZiti.getSize2D() * suofang));
         FontMetrics zitiDuliang = tuxing2.getFontMetrics();
-        int wenziKuan = zitiDuliang.stringWidth(shuziZiFu);
-        int wenziHeng = Math.round((huizhiKuan - wenziKuan) / 2f);
-        int wenziZong = Math.round(huizhiGao / 2f
+        long wenziKuan = zitiDuliang.stringWidth(shuziZiFu);
+        long wenziHeng = Math.round((huizhiKuan - wenziKuan) / 2f);
+        long wenziZong = Math.round(huizhiGao / 2f
                 + (zitiDuliang.getAscent() - zitiDuliang.getDescent()) / 2f);
 
         tuxing2.setColor(new Color(0, 0, 0, 160));
@@ -502,8 +520,8 @@ public class BINGPAI extends JButton implements canchosemany {
             tuxing2.setFont(fuwenbenZiti.deriveFont(
                     fuwenbenZiti.getSize2D() * suofang));
             FontMetrics fuwenbenDuliang = tuxing2.getFontMetrics();
-            int fuwenbenKuan = fuwenbenDuliang.stringWidth(fuwenben);
-            int bianju = Math.round(6 * suofang);
+            long fuwenbenKuan = fuwenbenDuliang.stringWidth(fuwenben);
+            long bianju = Math.round(6 * suofang);
             tuxing2.setColor(fuwenbenyanse);
             tuxing2.drawString(fuwenben,
                     juxingKuan - fuwenbenKuan - bianju,
@@ -511,17 +529,17 @@ public class BINGPAI extends JButton implements canchosemany {
         }
 
         if (xianshiShiqitiao) {
-            int bianju = Math.round(6 * suofang);
-            int tiaoGao = Math.max(1, Math.round(4 * suofang));
-            int mantiaoKuan = Math.max(1, juxingKuan - bianju * 2);
-            int tiaoKuan = (int) (mantiaoKuan * shiqibaifenbi);
-            int tiaoZong = juxingGao - tiaoGao - bianju;
+            long bianju = Math.round(6 * suofang);
+            long tiaoGao = Math.max(1, Math.round(4 * suofang));
+            long mantiaoKuan = Math.max(1, juxingKuan - bianju * 2);
+            long tiaoKuan = (long) (mantiaoKuan * shiqibaifenbi);
+            long tiaoZong = juxingGao - tiaoGao - bianju;
 
             tuxing2.setColor(new Color(0x00000088));
-            tuxing2.fillRect(bianju, tiaoZong, mantiaoKuan, tiaoGao);
+            tuxing2.fillRect((int) bianju, (int) tiaoZong, Math.toIntExact(mantiaoKuan), Math.toIntExact(tiaoGao));
 
             tuxing2.setColor(barColorFor(shiqibaifenbi));
-            tuxing2.fillRect(bianju, tiaoZong, tiaoKuan, tiaoGao);
+            tuxing2.fillRect((int) bianju, (int) tiaoZong, (int) tiaoKuan, (int) tiaoGao);
         }
 
         tuxing2.dispose();
@@ -550,7 +568,7 @@ public class BINGPAI extends JButton implements canchosemany {
         goto_MEIYIZHENZHIXING(1);
     }
 
-    public void goto_MEIYIZHENZHIXING(int bushu) {
+    public void goto_MEIYIZHENZHIXING(long bushu) {
         if (tasktogo == null || shuju == null || bushu <= 0) return;
 
         if (!guijiChushihua) {
@@ -710,6 +728,7 @@ public class BINGPAI extends JButton implements canchosemany {
                     chenggong = xuandingbianliang.add(zuizhongBingpai2);
                 }
                 if (chenggong) {
+                    System.out.println(1);
                     EVENTMAIN.post(new beixuanze_DUOXUAN(zuizhongBingpai));
                 }
             } catch (Exception yichang) {
@@ -763,11 +782,11 @@ public class BINGPAI extends JButton implements canchosemany {
             return;
         }
 
-        int bushu = Math.max(1,
-                (int) Math.ceil(juliDu / GUIJI_CAIYANG_BUSHENG_DU));
+        long bushu = Math.max(1,
+                (long) Math.ceil(juliDu / GUIJI_CAIYANG_BUSHENG_DU));
         if (bushu > 512) bushu = 512;
 
-        for (int i = 0; i <= bushu; i++) {
+        for (long i = 0; i <= bushu; i++) {
             double bili = (double) i / bushu;
             addPathPoint(jingdu1 + bili * dJingdu,
                     weidu1 + bili * dWeidu);

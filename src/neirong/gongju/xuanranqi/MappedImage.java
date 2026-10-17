@@ -22,12 +22,12 @@ public class MappedImage implements Closeable {
     private final FileChannel channel;
     private final MappedByteBuffer mbb;
     private final IntBuffer intView;
-    private final int width, height;
+    private final long width, height;
 
     private BufferedImage regionCache;
-    private int regionW = -1, regionH = -1;
+    private long regionW = -1, regionH = -1;
 
-    public MappedImage(File file, int width, int height) throws IOException {
+    public MappedImage(File file, long width, long height) throws IOException {
         this.file = file;
         this.width = width;
         this.height = height;
@@ -43,49 +43,49 @@ public class MappedImage implements Closeable {
         this.intView = mbb.asIntBuffer();
     }
 
-    public int getWidth()  { return width; }
-    public int getHeight() { return height; }
+    public long getWidth()  { return width; }
+    public long getHeight() { return height; }
     public File getFile()  { return file; }
 
     /** 整图写入 */
     public void writeAll(BufferedImage src) {
-        int w = Math.min(src.getWidth(), width);
-        int h = Math.min(src.getHeight(), height);
-        int[] row = new int[w];
-        for (int y = 0; y < h; y++) {
-            src.getRGB(0, y, w, 1, row, 0, w);
-            intView.position(y * width);
+        long w = Math.min(src.getWidth(), width);
+        long h = Math.min(src.getHeight(), height);
+        int[] row = new int[(int) w];
+        for (long y = 0; y < h; y++) {
+            src.getRGB(0, (int) y, (int) w, 1, row, 0, (int) w);
+            intView.position((int) (y * width));
             intView.put(row);
         }
     }
 
     /** 写一个矩形区域 */
-    public void writeRect(BufferedImage src, int x, int y) {
-        int w = Math.min(src.getWidth(), width - x);
-        int h = Math.min(src.getHeight(), height - y);
+    public void writeRect(BufferedImage src, long x, long y) {
+        long w = Math.min(src.getWidth(), width - x);
+        long h = Math.min(src.getHeight(), height - y);
         if (w <= 0 || h <= 0) return;
-        int[] row = new int[w];
-        for (int r = 0; r < h; r++) {
-            src.getRGB(0, r, w, 1, row, 0, w);
-            intView.position((y + r) * width + x);
+        int[] row = new int[(int) w];
+        for (long r = 0; r < h; r++) {
+            src.getRGB(0, (int) r, (int) w, 1, row, 0, (int) w);
+            intView.position((int) ((y + r) * width + x));
             intView.put(row);
         }
     }
 
     public void clear() {
-        int[] zeros = new int[Math.min(width, 8192)];
+        int[] zeros = new int[(int) Math.min(width, 8192)];
         long total = (long) width * height;
         long pos = 0;
         while (pos < total) {
-            int n = (int) Math.min(total - pos, zeros.length);
+            long n = (long) Math.min(total - pos, zeros.length);
             intView.position((int) pos);
-            intView.put(zeros, 0, n);
+            intView.put(zeros, 0, (int) n);
             pos += n;
         }
     }
 
     /** 读一个区域，复用同一张 BufferedImage。 */
-    public BufferedImage readRegion(int x, int y, int w, int h) {
+    public BufferedImage readRegion(long x, long y, long w, long h) {
         if (x < 0) { w += x; x = 0; }
         if (y < 0) { h += y; y = 0; }
         if (x + w > width)  w = width  - x;
@@ -93,24 +93,24 @@ public class MappedImage implements Closeable {
         if (w <= 0 || h <= 0) return null;
 
         if (regionCache == null || regionW != w || regionH != h) {
-            regionCache = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
+            regionCache = new BufferedImage((int) w, (int) h, BufferedImage.TYPE_INT_ARGB_PRE);
             regionW = w;
             regionH = h;
         }
 
         int[] dst = ((DataBufferInt) regionCache.getRaster().getDataBuffer()).getData();
         int dstPos = 0;
-        for (int row = 0; row < h; row++) {
-            intView.position((y + row) * width + x);
-            intView.get(dst, dstPos, w);
-            dstPos += w;
+        for (long row = 0; row < h; row++) {
+            intView.position((int) ((y + row) * width + x));
+            intView.get(dst, dstPos, (int) w);
+            dstPos += (int) w;
         }
         return regionCache;
     }
 
-    public int getARGB(int x, int y) {
+    public long getARGB(long x, long y) {
         if (x < 0 || y < 0 || x >= width || y >= height) return 0;
-        return mbb.getInt((y * width + x) * 4);
+        return mbb.getInt((int) ((y * width + x) * 4));
     }
 
     public void force() {

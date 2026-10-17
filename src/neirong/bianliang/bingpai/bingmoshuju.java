@@ -11,7 +11,7 @@ public class bingmoshuju {
     }
     public List<BINGPAI> gongjizhe=new ArrayList<>();
     public double fanwei;
-    public int zhudongxing=10;
+    public long zhudongxing=10;
     /**
      * 去重添加攻击者。
      *

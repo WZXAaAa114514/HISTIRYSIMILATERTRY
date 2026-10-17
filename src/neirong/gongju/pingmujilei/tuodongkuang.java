@@ -6,16 +6,16 @@ import java.awt.event.*;
 
 public class tuodongkuang extends JPanel {
 
-    public static final int HEIGHT = 50;
+    public static final long HEIGHT = 50;
 
-    private static final int RESIZE_MARGIN = 6;
-    private static final int MIN_W = 40;
-    private static final int MIN_H = 30;
+    private static final long RESIZE_MARGIN = 6;
+    private static final long MIN_W = 40;
+    private static final long MIN_H = 30;
 
-    private static final int EDGE_LEFT   = 1;
-    private static final int EDGE_RIGHT  = 2;
-    private static final int EDGE_TOP    = 4;
-    private static final int EDGE_BOTTOM = 8;
+    private static final long EDGE_LEFT   = 1;
+    private static final long EDGE_RIGHT  = 2;
+    private static final long EDGE_TOP    = 4;
+    private static final long EDGE_BOTTOM = 8;
 
     private final JPanel a;
 
@@ -26,7 +26,7 @@ public class tuodongkuang extends JPanel {
     private Rectangle savedBounds;
     private JButton fullBtn;
 
-    private int resizeEdges = 0;
+    private long resizeEdges = 0;
     private Point resizeStartParent;
     private Rectangle resizeStartBounds;
 
@@ -38,7 +38,7 @@ public class tuodongkuang extends JPanel {
 
     private JWindow ghostWindow;
     private Rectangle ghostStartBounds;
-    private int ghostAX, ghostAY;
+    private long ghostAX, ghostAY;
 
     /* ==================== 父容器尺寸监听（全屏跟随） ==================== */
     private final ComponentAdapter parentResizeListener = new ComponentAdapter() {
@@ -52,7 +52,7 @@ public class tuodongkuang extends JPanel {
             try {
                 // 全屏状态下父容器被拉伸：
                 // a 下移 HEIGHT，高度占满剩余空间
-                a.setBounds(0, HEIGHT, p.getWidth(), p.getHeight() - HEIGHT);
+                a.setBounds(0, (int) HEIGHT, p.getWidth(), (int) (p.getHeight() - HEIGHT));
                 applyBounds();
             } finally {
                 adjusting = false;
@@ -115,15 +115,15 @@ public class tuodongkuang extends JPanel {
                 if (p == null) return;
 
                 Point now = SwingUtilities.convertPoint(tuodongkuang.this, e.getPoint(), p);
-                int dx = now.x - dragStartParent.x;
-                int dy = now.y - dragStartParent.y;
+                long dx = now.x - dragStartParent.x;
+                long dy = now.y - dragStartParent.y;
 
-                int newAX = dragStartA.x + dx;
-                int newAY = dragStartA.y + dy;
+                long newAX = dragStartA.x + dx;
+                long newAY = dragStartA.y + dy;
 
                 Dimension pSize = p.getSize();
-                int aw = a.getWidth();
-                int ah = a.getHeight();
+                long aw = a.getWidth();
+                long ah = a.getHeight();
 
                 newAX = Math.max(0, Math.min(newAX, Math.max(0, pSize.width  - aw)));
                 newAY = Math.max(0, Math.min(newAY, Math.max(0, pSize.height - ah)));
@@ -138,7 +138,7 @@ public class tuodongkuang extends JPanel {
                     if (newAX == a.getX() && newAY == a.getY()) return;
                     adjusting = true;
                     try {
-                        a.setLocation(newAX, newAY);
+                        a.setLocation((int) newAX, (int) newAY);
                         applyBounds();
                     } finally {
                         adjusting = false;
@@ -152,7 +152,7 @@ public class tuodongkuang extends JPanel {
                     ghostWindow.setVisible(false);
                     adjusting = true;
                     try {
-                        a.setLocation(ghostAX, ghostAY);
+                        a.setLocation((int) ghostAX, (int) ghostAY);
                         applyBounds();
                     } finally {
                         adjusting = false;
@@ -187,7 +187,7 @@ public class tuodongkuang extends JPanel {
                 if (savedBounds != null) return; // 全屏时禁止缩放
                 if (!SwingUtilities.isLeftMouseButton(e)) return;
 
-                int edges = detectEdges(e);
+                long edges = detectEdges(e);
                 if (edges == 0) return;
 
                 Container p = getParent();
@@ -206,34 +206,34 @@ public class tuodongkuang extends JPanel {
                 if (p == null) return;
 
                 Point now = SwingUtilities.convertPoint(a, e.getPoint(), p);
-                int dx = now.x - resizeStartParent.x;
-                int dy = now.y - resizeStartParent.y;
+                long dx = now.x - resizeStartParent.x;
+                long dy = now.y - resizeStartParent.y;
 
                 Rectangle b = new Rectangle(resizeStartBounds);
 
                 if ((resizeEdges & EDGE_LEFT) != 0) {
-                    int nw = b.width - dx;
-                    if (nw >= MIN_W) { b.x += dx; b.width = nw; }
-                    else { b.x = b.x + b.width - MIN_W; b.width = MIN_W; }
+                    long nw = b.width - dx;
+                    if (nw >= MIN_W) { b.x += dx; b.width = (int) nw; }
+                    else { b.x = (int) (b.x + b.width - MIN_W); b.width = (int) MIN_W; }
                 }
                 if ((resizeEdges & EDGE_RIGHT) != 0) {
-                    b.width = Math.max(MIN_W, b.width + dx);
+                    b.width = (int) Math.max(MIN_W, b.width + dx);
                 }
                 if ((resizeEdges & EDGE_TOP) != 0) {
-                    int nh = b.height - dy;
-                    if (nh >= MIN_H) { b.y += dy; b.height = nh; }
-                    else { b.y = b.y + b.height - MIN_H; b.height = MIN_H; }
+                    long nh = b.height - dy;
+                    if (nh >= MIN_H) { b.y += dy; b.height = (int) nh; }
+                    else { b.y = (int) (b.y + b.height - MIN_H); b.height = (int) MIN_H; }
                 }
                 if ((resizeEdges & EDGE_BOTTOM) != 0) {
-                    b.height = Math.max(MIN_H, b.height + dy);
+                    b.height = (int) Math.max(MIN_H, b.height + dy);
                 }
 
                 if (b.x < 0) { b.width += b.x; b.x = 0; }
                 if (b.y < 0) { b.height += b.y; b.y = 0; }
                 if (b.x + b.width > p.getWidth())   b.width  = p.getWidth()  - b.x;
                 if (b.y + b.height > p.getHeight()) b.height = p.getHeight() - b.y;
-                if (b.width  < MIN_W) b.width  = MIN_W;
-                if (b.height < MIN_H) b.height = MIN_H;
+                if (b.width  < MIN_W) b.width  = (int) MIN_W;
+                if (b.height < MIN_H) b.height = (int) MIN_H;
 
                 if (b.equals(a.getBounds())) return;
 
@@ -325,10 +325,10 @@ public class tuodongkuang extends JPanel {
         if (ghostWindow == null || ghostStartBounds == null) return;
         try {
             Point screen = a.getLocationOnScreen();
-            int dx = ghostAX - ghostStartBounds.x;
-            int dy = ghostAY - ghostStartBounds.y;
+            long dx = ghostAX - ghostStartBounds.x;
+            long dy = ghostAY - ghostStartBounds.y;
             ghostWindow.setBounds(
-                    screen.x + dx, screen.y + dy,
+                    (int) (screen.x + dx), (int) (screen.y + dy),
                     ghostStartBounds.width, ghostStartBounds.height);
             ghostWindow.setVisible(true);
         } catch (IllegalComponentStateException ignored) {
@@ -336,14 +336,14 @@ public class tuodongkuang extends JPanel {
     }
 
     private void applyGhostBounds() {
-        int aw = a.getWidth();
+        long aw = a.getWidth();
         if (aw <= 0) {
             Dimension pref = a.getPreferredSize();
             aw = (pref != null && pref.width > 0) ? pref.width : 200;
         }
-        int ty = ghostAY - HEIGHT;
+        long ty = ghostAY - HEIGHT;
         if (ty < 0) ty = ghostAY;
-        setBounds(ghostAX, ty, aw, HEIGHT);
+        setBounds((int) ghostAX, (int) ty, (int) aw, (int) HEIGHT);
     }
 
     /* ==================== 绘制 ==================== */
@@ -356,13 +356,13 @@ public class tuodongkuang extends JPanel {
 
     /* ==================== 边缘检测 ==================== */
 
-    private int detectEdges(MouseEvent e) {
-        int w = a.getWidth();
-        int h = a.getHeight();
-        int x = e.getX();
-        int y = e.getY();
+    private long detectEdges(MouseEvent e) {
+        long w = a.getWidth();
+        long h = a.getHeight();
+        long x = e.getX();
+        long y = e.getY();
 
-        int edges = 0;
+        long edges = 0;
         if (x < RESIZE_MARGIN)             edges |= EDGE_LEFT;
         if (x > w - RESIZE_MARGIN - 1)     edges |= EDGE_RIGHT;
         if (y < RESIZE_MARGIN)             edges |= EDGE_TOP;
@@ -374,8 +374,8 @@ public class tuodongkuang extends JPanel {
         return edges;
     }
 
-    private void applyResizeCursor(int edges) {
-        int type;
+    private void applyResizeCursor(long edges) {
+        long type;
         boolean left  = (edges & EDGE_LEFT)   != 0;
         boolean right = (edges & EDGE_RIGHT)  != 0;
         boolean top   = (edges & EDGE_TOP)    != 0;
@@ -393,7 +393,7 @@ public class tuodongkuang extends JPanel {
         } else {
             type = Cursor.DEFAULT_CURSOR;
         }
-        a.setCursor(Cursor.getPredefinedCursor(type));
+        a.setCursor(Cursor.getPredefinedCursor((int) type));
     }
 
     /* ==================== 全屏 / 还原 ==================== */
@@ -416,7 +416,7 @@ public class tuodongkuang extends JPanel {
                 //    y = HEIGHT，height = p.getHeight() - HEIGHT
                 //    拖动框由 applyBounds() 定位，ty = HEIGHT - HEIGHT = 0，
                 //    仍停在父容器顶部，不受影响
-                a.setBounds(0, HEIGHT, p.getWidth(), p.getHeight() - HEIGHT);
+                a.setBounds(0, (int) HEIGHT, p.getWidth(), (int) (p.getHeight() - HEIGHT));
 
                 fullBtn.setText("还原");
             } else {
@@ -476,18 +476,18 @@ public class tuodongkuang extends JPanel {
      * 全屏时 a.y == HEIGHT → ty == 0，拖动框停在父容器顶部不动。
      */
     private void applyBounds() {
-        int aw = a.getWidth();
+        long aw = a.getWidth();
         if (aw <= 0) {
             Dimension pref = a.getPreferredSize();
             aw = (pref != null && pref.width > 0) ? pref.width : 200;
         }
-        int ax = a.getX();
-        int ay = a.getY();
+        long ax = a.getX();
+        long ay = a.getY();
 
-        int ty = ay - HEIGHT;
+        long ty = ay - HEIGHT;
         if (ty < 0) ty = ay;
 
-        setBounds(ax, ty, aw, HEIGHT);
+        setBounds((int) ax, (int) ty, (int) aw, (int) HEIGHT);
     }
 
     @Override

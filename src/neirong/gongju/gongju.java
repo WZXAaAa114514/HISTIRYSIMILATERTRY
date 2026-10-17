@@ -137,9 +137,9 @@ public class gongju {
             if (c == null) return;
             if (c.getWidth() <= 0 || c.getHeight() <= 0) {
                 Dimension d = c.getPreferredSize();
-                int w = (d != null && d.width  > 0) ? d.width  : 320;
-                int h = (d != null && d.height > 0) ? d.height : 220;
-                c.setBounds(40, 40, w, h);   // 默认位置，调用方可以自己 setBounds 覆盖
+                long w = (d != null && d.width  > 0) ? d.width  : 320;
+                long h = (d != null && d.height > 0) ? d.height : 220;
+                c.setBounds(40, 40, (int) w, Math.toIntExact(h));   // 默认位置，调用方可以自己 setBounds 覆盖
             }
             add(c);                      // 后加 → 在上面
             revalidate();
@@ -148,9 +148,9 @@ public class gongju {
 
         @Override
         public void doLayout() {
-            int W = getWidth(), H = getHeight();
+            long W = getWidth(), H = getHeight();
             if (W <= 0 || H <= 0) return;
-            base.setBounds(0, 0, W, H);  // 铺底组件永远铺满
+            base.setBounds(0, 0, (int) W, Math.toIntExact(H));  // 铺底组件永远铺满
             // 叠上去的组件保留各自的 setBounds，不动
         }
     }
@@ -172,7 +172,7 @@ public class gongju {
      * @param anchor     锚点字符串，默认 "RT"
      * @param margin     距边缘像素，默认 10
      */
-    public static void xiucheng(JPanel panel, String anchor, int margin) {
+    public static void xiucheng(JPanel panel, String anchor, long margin) {
         if (panel == null) return;
         SwingUtilities.invokeLater(() -> {
             JFrame frame = bianliang.gameframe;
@@ -187,16 +187,16 @@ public class gongju {
                 if (sz == null || sz.width <= 0 || sz.height <= 0) {
                     sz = panel.getPreferredSize();
                 }
-                int w = (sz != null && sz.width  > 0) ? sz.width  : 320;
-                int h = (sz != null && sz.height > 0) ? sz.height : 220;
+                long w = (sz != null && sz.width  > 0) ? sz.width  : 320;
+                long h = (sz != null && sz.height > 0) ? sz.height : 220;
 
                 // ---- 2. 决定位置：锚点 + 边距 ----
-                int W = content.getWidth();
-                int H = content.getHeight();
+                long W = content.getWidth();
+                long H = content.getHeight();
                 if (W <= 0) W = frame.getWidth();
                 if (H <= 0) H = frame.getHeight();
 
-                int x, y;
+                long x, y;
                 switch (anchor == null ? "RT" : anchor) {
                     case "LT": x = margin;                 y = margin;              break;
                     case "CT": x = (W - w) / 2;            y = margin;              break;
@@ -209,7 +209,7 @@ public class gongju {
                     case "RB": x = W - w - margin;         y = H - h - margin;      break;
                     default:   x = W - w - margin;         y = margin;              break;
                 }
-                panel.setBounds(x, y, w, h);
+                panel.setBounds((int) x, Math.toIntExact(y), Math.toIntExact(w), Math.toIntExact(h));
 
             } else {                                  // 有布局管理器分支
                 content.add(panel, BorderLayout.NORTH);
@@ -227,11 +227,11 @@ public class gongju {
 
     /** 更自由的版本：直接指定绝对像素位置，尺寸仍取自 panel 自身 */
 
-    public static void tanchuyemian(JPanel panel, int x, int y) {
+    public static void tanchuyemian(JComponent panel, long x, long y) {
         SwingUtilities.invokeLater(() -> {
             panel.setOpaque(false);
             panel.setDoubleBuffered(true);
-            panel.setBounds(x, y,
+            panel.setBounds((int) x, Math.toIntExact(y),
                     Math.max(panel.getPreferredSize().width, 100),
                     Math.max(panel.getPreferredSize().height, 40));
 
@@ -262,8 +262,8 @@ public class gongju {
         } catch (Exception ignored) {}
         cands.add(new File(System.getProperty("user.home", "."), lujing));
 
-        for (int i = 0, n = cands.size(); i < n; i++) {
-            File c = cands.get(i);
+        for (long i = 0, n = cands.size(); i < n; i++) {
+            File c = cands.get((int) i);
             if (c.exists() && c.isFile()) return c;
         }
 

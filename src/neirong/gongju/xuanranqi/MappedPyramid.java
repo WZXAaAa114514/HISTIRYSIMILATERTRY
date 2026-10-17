@@ -14,33 +14,33 @@ import java.io.IOException;
  */
 public class MappedPyramid implements Closeable {
 
-    public final int basePpd;
-    public final int levels;
+    public final long basePpd;
+    public final long levels;
 
     private final MappedImage[] images;
-    private final int[] ppds;
+    private final long[] ppds;
     private final File dir;
 
-    public MappedPyramid(File dir, int basePpd, int levels) throws IOException {
+    public MappedPyramid(File dir, long basePpd, long levels) throws IOException {
         this.dir = dir;
         this.basePpd = basePpd;
         this.levels = levels;
-        this.images = new MappedImage[levels];
-        this.ppds = new int[levels];
+        this.images = new MappedImage[(int) levels];
+        this.ppds = new long[(int) levels];
 
-        int p = basePpd;
-        for (int i = 0; i < levels; i++) {
-            int w = 360 * p;
-            int h = 180 * p;
-            images[i] = new MappedImage(
+        long p = basePpd;
+        for (long i = 0; i < levels; i++) {
+            long w = 360 * p;
+            long h = 180 * p;
+            images[(int) i] = new MappedImage(
                     new File(dir, "level_" + i + "_ppd" + p + ".dat"), w, h);
-            ppds[i] = p;
+            ppds[(int) i] = p;
             p = Math.max(1, p / 2);
         }
     }
 
-    public int getPpd(int level)        { return ppds[level]; }
-    public MappedImage get(int level)   { return images[level]; }
+    public long getPpd(long level)        { return ppds[(int) level]; }
+    public MappedImage get(long level)   { return images[(int) level]; }
     public File getDir()                { return dir; }
 
     /**
@@ -51,10 +51,10 @@ public class MappedPyramid implements Closeable {
         images[0].writeAll(base);
 
         BufferedImage prev = base;
-        for (int i = 1; i < levels; i++) {
-            int w = images[i].getWidth();
-            int h = images[i].getHeight();
-            BufferedImage scaled = new BufferedImage(w, h,
+        for (long i = 1; i < levels; i++) {
+            long w = images[(int) i].getWidth();
+            long h = images[(int) i].getHeight();
+            BufferedImage scaled = new BufferedImage((int) w, (int) h,
                     BufferedImage.TYPE_INT_ARGB_PRE);
             Graphics2D g = scaled.createGraphics();
             try {
@@ -63,11 +63,11 @@ public class MappedPyramid implements Closeable {
                 g.setRenderingHint(RenderingHints.KEY_RENDERING,
                         RenderingHints.VALUE_RENDER_QUALITY);
                 g.setComposite(AlphaComposite.Src);
-                g.drawImage(prev, 0, 0, w, h, null);
+                g.drawImage(prev, 0, 0, (int) w, (int) h, null);
             } finally {
                 g.dispose();
             }
-            images[i].writeAll(scaled);
+            images[(int) i].writeAll(scaled);
             scaled.flush();
             prev = scaled;
         }
@@ -77,9 +77,9 @@ public class MappedPyramid implements Closeable {
      * 根据目标 ppd 选层：返回 ppds[i] &le; target 中最大的那层。
      * 例如 target=12，层 PPD 为 {32,16,8,4,2,1}，返回 PPD=8 的那层。
      */
-    public int pickLevel(double target) {
-        for (int i = 0; i < levels; i++) {
-            if (ppds[i] <= target) return i;
+    public long pickLevel(double target) {
+        for (long i = 0; i < levels; i++) {
+            if (ppds[(int) i] <= target) return i;
         }
         return levels - 1;   // target < 1，用最低分辨率层
     }
