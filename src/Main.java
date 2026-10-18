@@ -5,6 +5,7 @@ import neirong.gongju.bianliang;
 import neirong.gongju.gongju;
 import neirong.gongju.pingmujilei.XYBoard;
 import neirong.gongju.pingmujilei.tuodongkuang;
+import neirong.gongju.xuanranqi.PaintBoard;
 import neirong.gongju.yemian.danchu;
 import neirong.gongju.yemian.danru;
 import shunxu.anjianhuoqu.anjianhuoqu;
@@ -29,14 +30,25 @@ public class Main {
         EVENTMAIN=new EventBus();
         EVENTMAIN.register(new MyListener());
         board.setGuijishifoukangjuchi(false);
-        javax.swing.Timer timer = new javax.swing.Timer(1, e -> {
+        javax.swing.Timer timer = new javax.swing.Timer(10, e -> {
             // 统一 tick 所有 BINGPAI，每个只 tick 一次
             zhuyemian.repaint();
             TIME.repaint();
             diejiaceng.repaint();
             gameframe.repaint();
             board.repaint();
+            //board.suoyouliveDianZhuanWeiFeiLive();
         });
+        javax.swing.Timer timers = new javax.swing.Timer(10000, e -> {
+            // 统一 tick 所有 BINGPAI，每个只 tick 一次
+            zhuyemian.repaint();
+            TIME.repaint();
+            diejiaceng.repaint();
+            gameframe.repaint();
+            board.repaint();
+            board.suoyouliveDianZhuanWeiFeiLive();
+        });
+        timers.start();
         timer.start();
         System.setProperty("sun.java2d.d3d", "True");
         System.setProperty("sun.java2d.noddraw", "True");

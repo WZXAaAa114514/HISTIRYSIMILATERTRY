@@ -43,6 +43,22 @@ public class PaintBoard extends JPanel {
     private static BasicStroke strokeOf(float w) { return STROKE_CACHE.computeIfAbsent(w, BasicStroke::new); }
     private static final BasicStroke huabi = new BasicStroke(1f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 
+    /* ============================================================
+     *  ★ 轨迹烘焙线程：把栅格化搬离 EDT
+     * ============================================================ */
+    private final ExecutorService trailExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "trail-baker");
+        t.setDaemon(true);
+        t.setPriority(Thread.NORM_PRIORITY - 1);
+        return t;
+    });
+
+    /* ============================================================
+     *  ★ 世界画布重建节流：避免每次 paint 都做整画布重烤
+     * ============================================================ */
+    private volatile long lastRebuildNanos = 0L;
+    private static final long MIN_REBUILD_INTERVAL_NS = 100_000_000L; // 100ms
+
     private float liveanniuzujianzuixiaozhi = 2f, liveanniuzujianzuidazhi = 5f, livedilizujianzuixiaozhi = 2f, livedilizujianzuidazhi = 5f;
     public float getLiveanniuzujianzuixiaozhi() { return liveanniuzujianzuixiaozhi; }
     public void setLiveanniuzujianzuixiaozhi(float v) { liveanniuzujianzuixiaozhi = Math.max(0.01f, v); if (liveanniuzujianzuidazhi < liveanniuzujianzuixiaozhi) liveanniuzujianzuidazhi = liveanniuzujianzuixiaozhi; }
@@ -147,19 +163,29 @@ public class PaintBoard extends JPanel {
         return ot;
     }
     public void qingkongquanbuguiji() {
+        // pending 清理在 EDT（快速）；pyramid.clear 搬到烘焙线程串行执行
         runOnEDT(() -> {
-            for (OwnerTrail ot : ownerTrails.values()) { synchronized (ot.pending) { ot.pending.clear(); } ot.pyramid.clear(); ot.hasAny = false; }
+            for (OwnerTrail ot : ownerTrails.values()) {
+                synchronized (ot.pending) { ot.pending.clear(); ot.flushScheduled = false; }
+                ot.hasAny = false;
+            }
             hasAnyTrails = false;
+            trailExecutor.execute(() -> {
+                for (OwnerTrail ot : ownerTrails.values()) {
+                    try { ot.pyramid.clear(); } catch (Exception ignored) {}
+                }
+            });
         });
     }
     public void qingkongquanbuguiji(Object owner) {
         final Object fOwner = (owner != null) ? owner : GLOBAL_TRAIL_OWNER;
         runOnEDT(() -> {
             OwnerTrail ot = ownerTrails.get(fOwner); if (ot == null) return;
-            synchronized (ot.pending) { ot.pending.clear(); }
-            ot.pyramid.clear(); ot.hasAny = false;
+            synchronized (ot.pending) { ot.pending.clear(); ot.flushScheduled = false; }
+            ot.hasAny = false;
             boolean any = false; for (OwnerTrail x : ownerTrails.values()) if (x.hasAny) { any = true; break; }
             hasAnyTrails = any;
+            trailExecutor.execute(() -> { try { ot.pyramid.clear(); } catch (Exception ignored) {} });
         });
     }
     public void removeOwnerTrails(Object owner) { /* 共享金字塔，不删 */ }
@@ -175,7 +201,11 @@ public class PaintBoard extends JPanel {
         guijixianduanmoxing seg = new guijixianduanmoxing(lon1, lat1, lon2, lat2, baseColor, screenWidthPx);
         boolean needSchedule;
         synchronized (ot.pending) { ot.pending.add(seg); needSchedule = !ot.flushScheduled; if (needSchedule) ot.flushScheduled = true; }
-        if (needSchedule) SwingUtilities.invokeLater(() -> flushTrailPending(ot));
+        // ★ 关键：烘焙放到后台线程，不再占用 EDT
+        if (needSchedule) trailExecutor.execute(() -> {
+            try { flushTrailPending(ot); }
+            catch (Throwable t) { synchronized (ot.pending) { ot.flushScheduled = false; } }
+        });
     }
     private void flushTrailPending(OwnerTrail ot) {
         List<guijixianduanmoxing> batch;
@@ -249,7 +279,9 @@ public class PaintBoard extends JPanel {
     }
     public shubiaojingweidu dangqianshubiaojingweidu = null;
     private static final double shijieweidufanwei_MIN = -90, shijieweidufanwei_MAX = 90;
-    private double shituzhongxinjingdu = 0, shituzhongxinweidu = 0, ppd = 6, minPpd = 6, maxPpd = 400;
+    private volatile double shituzhongxinjingdu = 0, shituzhongxinweidu = 0;
+    private volatile double ppd = 6;
+    private double minPpd = 6, maxPpd = 400;
     private Double lonBoundMin = null, lonBoundMax = null, latBoundMin = null, latBoundMax = null;
     private static final double GRID_STEP = 15;
     private long virtualButtonHalfHeight = 15;
@@ -401,6 +433,13 @@ public class PaintBoard extends JPanel {
         public boolean visible = true; public float minScale = 0.4f, maxScale = 2.5f;
         transient Font cachedFont = null; transient float cachedFontSize = -1f;
         transient long cachedFontStyle = -1; transient FontMetrics cachedFm = null; transient Font cachedFmFont = null;
+
+        /* ★ TextLayout 轮廓缓存（避免每次绘制都重建 TextLayout） */
+        transient Shape cachedOutline = null;
+        transient Font cachedOutlineFont = null;
+        transient String cachedOutlineText = null;
+        transient FontRenderContext cachedOutlineFrc = null;
+
         wuliwenben(double lon, double lat, String text, float fontSize, Color color, boolean scaleWithZoom, double basePpd, long bianhao) {
             this.lon = lon; this.lat = lat; this.text = text; this.baseFontSize = fontSize;
             this.color = color; this.scaleWithZoom = scaleWithZoom; this.basePpd = basePpd; this.bianhao = bianhao;
@@ -410,6 +449,17 @@ public class PaintBoard extends JPanel {
                 cachedFont = new Font(ziti, (int) fontStyle, 12).deriveFont(size); cachedFontSize = size; cachedFontStyle = fontStyle;
             }
             return cachedFont;
+        }
+        Shape outlineFor(Font font, FontRenderContext frc) {
+            if (cachedOutline == null || cachedOutlineFont != font
+                    || !text.equals(cachedOutlineText) || cachedOutlineFrc != frc) {
+                TextLayout layout = new TextLayout(text, font, frc);
+                cachedOutline = layout.getOutline(null);
+                cachedOutlineFont = font;
+                cachedOutlineText = text;
+                cachedOutlineFrc = frc;
+            }
+            return cachedOutline;
         }
     }
     private final List<wuliwenben> wuliwenbens = new ArrayList<>();
@@ -461,6 +511,8 @@ public class PaintBoard extends JPanel {
             ownerTrails.put(GLOBAL_TRAIL_OWNER, new OwnerTrail(GLOBAL_TRAIL_OWNER, new MappedPyramid(new File(lingshijingzitamulu, "trail"), jingzitaxiangsushu, guijijingzitashu)));
         } catch (IOException e) { throw new RuntimeException("无法创建磁盘金字塔", e); }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try { trailExecutor.shutdownNow(); } catch (Exception ignored) {}
+            try { FPSjianting.shutdownNow(); } catch (Exception ignored) {}
             try { ditujingzita.close(); } catch (Exception ignored) {}
             for (OwnerTrail ot : ownerTrails.values()) { try { ot.pyramid.close(); } catch (Exception ignored) {} }
             try { Thread.sleep(200); } catch (InterruptedException ignored) {}
@@ -516,8 +568,13 @@ public class PaintBoard extends JPanel {
         }
     }
     private void updateMouse(MouseEvent e) {
-        if (getWidth() <= 0 || getHeight() <= 0) return;
-        double[] ll = screenToLonLat(e.getX(), e.getY()); dangqianshubiaojingweidu = new shubiaojingweidu(ll[0], ll[1]);
+        int w = getWidth(), h = getHeight();
+        if (w <= 0 || h <= 0) return;
+        // ★ 内联，避免 double[] 分配
+        double lon = shituzhongxinjingdu + (e.getX() - w / 2.0) / ppd;
+        double lat = shituzhongxinweidu - (e.getY() - h / 2.0) / ppd;
+        dangqianshubiaojingweidu = new shubiaojingweidu(
+                normalizeLon(lon), clamp(lat, shijieweidufanwei_MIN, shijieweidufanwei_MAX));
     }
     private void markWorldDirty() { worldDirty = true; }
     public void Static() { markWorldDirty(); }
@@ -1132,7 +1189,14 @@ public class PaintBoard extends JPanel {
         long W = getWidth(), H = getHeight();
         if (W <= 0 || H <= 0) return;
         tickFrame(); syncLive();
-        if (shifouhongpeidiandaotitu && worldDirty) rebuildWorldCanvas();
+        // ★ 重建节流：最多 100ms 一次，避免拖拽/批量添加时反复整画布重烤
+        if (shifouhongpeidiandaotitu && worldDirty) {
+            long now = System.nanoTime();
+            if (lastRebuildNanos == 0L || (now - lastRebuildNanos) >= MIN_REBUILD_INTERVAL_NS) {
+                rebuildWorldCanvas();
+                lastRebuildNanos = now;
+            }
+        }
         if (!livedianji.isEmpty()) rebuildVisibleLiveDots();
         Graphics2D g2 = (Graphics2D) g.create();
         try {
@@ -1345,9 +1409,13 @@ public class PaintBoard extends JPanel {
                 if (x + textW < 0 || x > W || y - ascent > H || y + descent < 0) continue;
                 drawTextWithOutline(g2, t, x, y);
             } else {
+                // ★ 内联 lonLatToScreen 坐标计算，避免每帧数组分配
+                double baseX = (t.lon - shituzhongxinjingdu) * ppd + W / 2.0;
+                double baseY = (shituzhongxinweidu - t.lat) * ppd + H / 2.0;
                 for (long k = -copies; k <= copies; k++) {
-                    long[] p = lonLatToScreen(t.lon + k * 360.0, t.lat);
-                    long x = p[0] - textW / 2 + (long) Math.round(t.offsetX), y = p[1] + centerOffset + (long) Math.round(t.offsetY);
+                    long px = Math.round(baseX + k * panelWidthPx);
+                    long py = Math.round(baseY);
+                    long x = px - textW / 2 + (long) Math.round(t.offsetX), y = py + centerOffset + (long) Math.round(t.offsetY);
                     if (x + textW < 0 || x > W || y - ascent > H || y + descent < 0) continue;
                     drawTextWithOutline(g2, t, x, y);
                 }
@@ -1357,15 +1425,22 @@ public class PaintBoard extends JPanel {
     private void drawTextWithOutline(Graphics2D g2, wuliwenben t, long x, long y) {
         Font font = g2.getFont();
         FontRenderContext frc = g2.getFontRenderContext();
-        TextLayout layout = new TextLayout(t.text, font, frc);
-        Shape outline = layout.getOutline(AffineTransform.getTranslateInstance(x, y));
-        if (t.outlineColor != null && t.outlineWidth > 0f) {
-            g2.setColor(t.outlineColor);
-            g2.setStroke(new BasicStroke(t.outlineWidth * 2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-            g2.draw(outline);
+        // ★ 通过缓存避免每次重建 TextLayout
+        Shape outline = t.outlineFor(font, frc);
+        if (outline == null) return;
+        AffineTransform old = g2.getTransform();
+        g2.translate((double) x, (double) y);
+        try {
+            if (t.outlineColor != null && t.outlineWidth > 0f) {
+                g2.setColor(t.outlineColor);
+                g2.setStroke(new BasicStroke(t.outlineWidth * 2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                g2.draw(outline);
+            }
+            g2.setColor(t.color != null ? t.color : Color.WHITE);
+            g2.fill(outline);
+        } finally {
+            g2.setTransform(old);
         }
-        g2.setColor(t.color != null ? t.color : Color.WHITE);
-        g2.fill(outline);
     }
 
     private void drawGridOnScreen(Graphics2D g2, long W, long H) {
@@ -1834,5 +1909,77 @@ public class PaintBoard extends JPanel {
             if (start == p) throw new IllegalArgumentException("JSON 非法数值");
             return Double.valueOf(s.substring(start, p));
         }
+    }
+    /* ============================================================
+     *  ★ 把所有 live 点转成非 live（分帧版，不堵 EDT）
+     * ============================================================ */
+    private volatile long zhuanHuanRenWuDaiHao = 0L;
+
+    public void suoyouliveDianZhuanWeiFeiLive() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::suoyouliveDianZhuanWeiFeiLive);
+            return;
+        }
+        final long daihao = ++zhuanHuanRenWuDaiHao;   // 作废旧任务
+
+        if (livedianji.isEmpty()) {
+            qingliLiveHuanCun_BingBiaojiKebei();
+            return;
+        }
+
+        final List<dian> snapshot     = new ArrayList<>(livedianji);
+        final List<dian> pendingStatic = new ArrayList<>(snapshot.size());
+        zhuanHuanFenPian(snapshot, pendingStatic, 0, daihao);
+    }
+
+    private static final int ZHUANHUAN_PIANDU = 1000;
+
+    private void zhuanHuanFenPian(List<dian> snapshot,
+                                  List<dian> pendingStatic,
+                                  int from, long daihao) {
+        if (daihao != zhuanHuanRenWuDaiHao) return;   // 已被新任务/清空作废
+
+        int total = snapshot.size();
+        int to    = Math.min(total, from + ZHUANHUAN_PIANDU);
+
+        // 本批：只生成静态快照，不动 livedianji
+        for (int i = from; i < to; i++) {
+            dian d = snapshot.get(i);
+            dian snap = new dian(
+                    d.lon, d.lat, d.radiusDeg,
+                    d.color, d.borderColor, d.textColor,
+                    d.text, d.textScale, d.borderWidth);
+            snap.visible     = d.visible;
+            snap.screenSpace = false;      // 关键：标记为非 live
+            // 刻意不复制 zidonggengxinhuitiao，冻结成静态点
+            pendingStatic.add(snap);
+        }
+
+        if (to < total) {
+            // 还有剩余，排到下一帧继续
+            SwingUtilities.invokeLater(
+                    () -> zhuanHuanFenPian(snapshot, pendingStatic, to, daihao));
+            return;
+        }
+
+        // ======== 全部批处理完成：一次性批量提交 ========
+        // dian 未重写 equals/hashCode，用 IdentityHashMap 包一层避免误伤
+        Set<dian> oldLive = Collections.newSetFromMap(new IdentityHashMap<>());
+        oldLive.addAll(snapshot);
+
+        livedianji.removeAll(oldLive);          // ArrayList + HashSet：O(n)
+        feiwulidianji.removeAll(oldLive);       // 同上
+        feiwulidianji.addAll(pendingStatic);    // 加入新静态快照
+        pendingStatic.clear();
+
+        qingliLiveHuanCun_BingBiaojiKebei();
+    }
+
+    private void qingliLiveHuanCun_BingBiaojiKebei() {
+        shitulivedianji.clear();
+        markLiveDotBucketsDirty();
+        bumpLiveDotsVersion();
+        liveDotsCacheValid = false;
+        if (shifouhongpeidiandaotitu) markWorldDirty();
     }
 }
